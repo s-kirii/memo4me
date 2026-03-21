@@ -84,6 +84,7 @@ MVP で扱う画面状態は以下。
 
 - Header:
   - アプリ名表示
+  - `AI Settings` ボタン
   - `New Note` ボタン
   - 検索ボックス
 - 左カラム:
@@ -673,6 +674,45 @@ UI:
 - `NOT_FOUND`
 - `INTERNAL_ERROR`
 - `DB_ERROR`
+- `AI_CONNECTION_FAILED`
+- `AI_STORAGE_UNSUPPORTED`
+
+### 9.10 `GET /api/ai/settings`
+
+目的:
+
+- AI provider 設定取得
+
+レスポンス方針:
+
+- active provider を返す
+- provider ごとの endpoint / model / `hasApiKey` を返す
+- API キーそのものは返さない
+- 保存方式の補助情報を返して UI に注記表示できるようにする
+
+### 9.11 `PUT /api/ai/settings`
+
+目的:
+
+- AI provider 設定保存
+
+ルール:
+
+- `apiKey` を送ったときだけ保存済みキーを更新する
+- `clearApiKey=true` で保存済みキーを削除する
+- macOS は Keychain、Windows は DPAPI 保護を利用する
+
+### 9.12 `POST /api/ai/settings/test`
+
+目的:
+
+- provider ごとの接続テスト
+
+ルール:
+
+- `apiKey` 未指定時は保存済みキーを利用してよい
+- provider 側の 4xx / 5xx は `AI_CONNECTION_FAILED` として包んで返す
+- 現フェーズでは接続テストの土台のみ実装し、要約や抽出処理は次フェーズで扱う
 
 ## 10. DB 詳細設計
 
@@ -681,6 +721,8 @@ UI:
 - `notes`
 - `tags`
 - `note_tags`
+- `ai_settings`
+- `ai_provider_configs`
 
 ### 10.2 `notes` テーブル
 
@@ -757,6 +799,30 @@ CREATE INDEX idx_notes_title ON notes(title);
 CREATE INDEX idx_tags_normalized_name ON tags(normalized_name);
 ```
 
+追加マイグレーション:
+
+```sql
+CREATE TABLE ai_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  active_provider TEXT NOT NULL DEFAULT 'openai_compatible',
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE ai_provider_configs (
+  provider TEXT PRIMARY KEY,
+  endpoint TEXT NOT NULL DEFAULT '',
+  model TEXT NOT NULL DEFAULT '',
+  secret_storage TEXT NOT NULL DEFAULT '',
+  secret_ref TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
+);
+```
+
+補足:
+
+- API キー平文は DB に保存しない
+- DB には secret 保存方式と参照情報のみ保存する
+
 ## 11. フロントエンド詳細設計
 
 ### 11.1 ディレクトリ構成
@@ -765,7 +831,9 @@ CREATE INDEX idx_tags_normalized_name ON tags(normalized_name);
 frontend/
   src/
     components/
+      AiSettingsModal.tsx
     lib/
+      api.ts
     App.tsx
     App.css
     index.css
@@ -776,6 +844,7 @@ frontend/
 現状の主な構成:
 
 - `App`
+- `AiSettingsModal`
 - `RichTextEditor`
 - `SaveStatus`
 - `EmptyState`
@@ -806,6 +875,7 @@ frontend/
   - 並び替え条件
   - タグフィルタ
   - タグ入力欄
+  - AI 設定モーダルの開閉状態
   - 保存状態
   - エディタ内部 state
 
@@ -837,6 +907,7 @@ frontend/
 ```text
 backend/
   src/
+    ai/
     index.ts
     app.ts
     config.ts
@@ -854,6 +925,7 @@ backend/
 - `routes`: Express などのルーティング定義
 - `services`: 業務ルール
 - `repositories`: SQLite アクセス
+- `ai`: provider adapter と秘密情報保存抽象化
 - `db`: 接続とマイグレーション
 - `utils`: コンテンツ整形、タグ正規化、HTTP エラー共通化
 
@@ -866,6 +938,9 @@ backend/
 - `PUT /api/notes/:id`
 - `DELETE /api/notes/:id`
 - `GET /api/tags`
+- `GET /api/ai/settings`
+- `PUT /api/ai/settings`
+- `POST /api/ai/settings/test`
 
 ### 12.4 Repository / Service の責務分離
 
@@ -877,6 +952,9 @@ backend/
   - 更新日時管理
   - 検索条件組み立て
   - 一覧用抜粋生成
+  - AI provider 設定保存
+  - 秘密情報の Keychain / DPAPI 連携
+  - provider 接続テスト
 
 ### 12.5 SQLite 接続方針
 
@@ -1113,6 +1191,9 @@ README または配布資料には以下を明記する。
 - Markdown 保存 / 復元
 - コードブロックの言語指定とシンタックスハイライト
 - 自動保存、検索、タグフィルタ、並び替え、削除確認
+- AI provider 設定モーダル
+- AI 設定保存 API
+- macOS Keychain / Windows DPAPI を前提にしたキー保存基盤
 
 ### 18.2 現在の未完了タスク
 
@@ -1120,6 +1201,8 @@ README または配布資料には以下を明記する。
 - GitHub Releases の実運用確認
 - 配布物ダウンロードからの導入確認
 - 更新版の再配布と差し替え導入確認
+- AI 実行機能本体
+- タスクリスト機能
 
 ## 19. 要確認事項
 

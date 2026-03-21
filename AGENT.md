@@ -57,13 +57,15 @@ At the time this file was written, the following areas are already implemented.
 - code block language selection and syntax highlighting
 - delete confirmation
 - development launcher script: [dev.sh](/xxxxx/memo4me/dev.sh)
+- AI settings modal and provider configuration API
+- provider adapter foundation for OpenAI-compatible / Azure OpenAI / Gemini
+- macOS Keychain / Windows DPAPI based AI key storage foundation
 
 Important known remaining areas:
 
-- tag suggestion dropdown and existing-tag reuse UX
-- Chrome launch flow for distribution
-- release/distribution flow
-- user-facing usage guide
+- AI execution features such as summarize / structure / task extraction
+- task list feature set
+- Windows real-machine distribution verification
 
 Always verify the latest state in [tasklist.md](/xxxxx/memo4me/doc/tasklist.md) before changing code.
 
@@ -101,12 +103,17 @@ Key files and responsibilities:
 
 - App shell and main UI: [App.tsx](/xxxxx/memo4me/frontend/src/App.tsx)
 - Main frontend styling: [App.css](/xxxxx/memo4me/frontend/src/App.css)
+- AI settings modal: [AiSettingsModal.tsx](/xxxxx/memo4me/frontend/src/components/AiSettingsModal.tsx)
 - Rich editor component: [RichTextEditor.tsx](/xxxxx/memo4me/frontend/src/components/RichTextEditor.tsx)
 - Markdown conversion helpers: [markdown.ts](/xxxxx/memo4me/frontend/src/lib/markdown.ts)
 - API routes: [api.ts](/xxxxx/memo4me/backend/src/routes/api.ts)
+- AI settings service: [ai-settings-service.ts](/xxxxx/memo4me/backend/src/services/ai-settings-service.ts)
 - Domain/service layer: [note-service.ts](/xxxxx/memo4me/backend/src/services/note-service.ts)
 - Note repository: [note-repository.ts](/xxxxx/memo4me/backend/src/repositories/note-repository.ts)
+- AI settings repository: [ai-settings-repository.ts](/xxxxx/memo4me/backend/src/repositories/ai-settings-repository.ts)
 - Tag repository: [tag-repository.ts](/xxxxx/memo4me/backend/src/repositories/tag-repository.ts)
+- AI provider adapters: [provider-adapters.ts](/xxxxx/memo4me/backend/src/ai/provider-adapters.ts)
+- AI secret storage abstraction: [platform-secret-store.ts](/xxxxx/memo4me/backend/src/ai/platform-secret-store.ts)
 - Initial DB schema: [001_init.sql](/xxxxx/memo4me/backend/migrations/001_init.sql)
 
 ## Working Rules

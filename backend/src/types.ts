@@ -32,3 +32,48 @@ export type ListNotesParams = {
   tag?: string;
   sort?: string;
 };
+
+export type AiProviderId =
+  | "openai_compatible"
+  | "azure_openai"
+  | "gemini";
+
+export type AiProviderConfig = {
+  provider: AiProviderId;
+  endpoint: string;
+  model: string;
+  hasApiKey: boolean;
+  updatedAt: string | null;
+};
+
+export type AiSecretStorageStatus = {
+  strategy: "keychain" | "dpapi" | "unsupported";
+  supported: boolean;
+  note: string;
+};
+
+export type AiSettings = {
+  activeProvider: AiProviderId;
+  providers: AiProviderConfig[];
+  secretStorage: AiSecretStorageStatus;
+};
+
+export type AiProviderConfigInput = {
+  provider: AiProviderId;
+  endpoint: string;
+  model: string;
+  apiKey?: string;
+  clearApiKey?: boolean;
+};
+
+export type AiSettingsInput = {
+  activeProvider: AiProviderId;
+  providers: AiProviderConfigInput[];
+};
+
+export type AiConnectionTestInput = {
+  provider: AiProviderId;
+  endpoint?: string;
+  model?: string;
+  apiKey?: string;
+};

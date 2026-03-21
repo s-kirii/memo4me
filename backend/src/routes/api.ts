@@ -1,7 +1,8 @@
 import { Router } from "express";
+import { AiSettingsService } from "../services/ai-settings-service";
 import { HttpError } from "../utils/http-error";
 import { NoteService } from "../services/note-service";
-import type { NoteInput } from "../types";
+import type { AiConnectionTestInput, AiSettingsInput, NoteInput } from "../types";
 
 function parseNoteInput(body: unknown): NoteInput {
   const payload = body as Partial<NoteInput>;
@@ -13,7 +14,36 @@ function parseNoteInput(body: unknown): NoteInput {
   };
 }
 
-export function createApiRouter(noteService: NoteService) {
+function parseAiSettingsInput(body: unknown): AiSettingsInput {
+  const payload = body as Partial<AiSettingsInput>;
+
+  return {
+    activeProvider:
+      typeof payload.activeProvider === "string"
+        ? payload.activeProvider
+        : "openai_compatible",
+    providers: Array.isArray(payload.providers) ? payload.providers : [],
+  };
+}
+
+function parseAiConnectionTestInput(body: unknown): AiConnectionTestInput {
+  const payload = body as Partial<AiConnectionTestInput>;
+
+  return {
+    provider:
+      typeof payload.provider === "string"
+        ? payload.provider
+        : "openai_compatible",
+    endpoint: typeof payload.endpoint === "string" ? payload.endpoint : undefined,
+    model: typeof payload.model === "string" ? payload.model : undefined,
+    apiKey: typeof payload.apiKey === "string" ? payload.apiKey : undefined,
+  };
+}
+
+export function createApiRouter(
+  noteService: NoteService,
+  aiSettingsService: AiSettingsService,
+) {
   const router = Router();
 
   router.get("/health", (_req, res) => {
@@ -53,6 +83,27 @@ export function createApiRouter(noteService: NoteService) {
   router.get("/tags", (_req, res) => {
     const items = noteService.listTags();
     res.json({ items });
+  });
+
+  router.get("/ai/settings", (_req, res) => {
+    const settings = aiSettingsService.getSettings();
+    res.json(settings);
+  });
+
+  router.put("/ai/settings", (req, res) => {
+    const settings = aiSettingsService.updateSettings(parseAiSettingsInput(req.body));
+    res.json(settings);
+  });
+
+  router.post("/ai/settings/test", async (req, res, next) => {
+    try {
+      const result = await aiSettingsService.testConnection(
+        parseAiConnectionTestInput(req.body),
+      );
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
   });
 
   router.use((_req, _res, next) => {

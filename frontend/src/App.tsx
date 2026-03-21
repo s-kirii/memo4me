@@ -6,7 +6,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { AiSettingsModal } from "./components/AiSettingsModal";
 import { RichTextEditor } from "./components/RichTextEditor";
+import { request } from "./lib/api";
 import "./App.css";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -39,27 +41,6 @@ type EditorDraft = {
   contentMd: string;
   tags: string[];
 };
-
-const API_BASE = import.meta.env.DEV ? "http://127.0.0.1:8787/api" : "/api";
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
-
-  if (!response.ok) {
-    const errorBody = (await response.json().catch(() => null)) as
-      | { error?: { message?: string } }
-      | null;
-    throw new Error(errorBody?.error?.message ?? "request failed");
-  }
-
-  return (await response.json()) as T;
-}
 
 function getDisplayTitle(title: string) {
   return title.trim() || "Untitled";
@@ -118,6 +99,7 @@ function App() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const saveTimerRef = useRef<number | null>(null);
@@ -534,6 +516,13 @@ function App() {
           <h1>Local-first note workspace</h1>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setIsAiSettingsOpen(true)}
+          >
+            AI Settings
+          </button>
           <button className="primary-button" onClick={() => void handleCreateNote()}>
             New Note
           </button>
@@ -783,6 +772,12 @@ function App() {
           )}
         </section>
       </main>
+
+      <AiSettingsModal
+        isOpen={isAiSettingsOpen}
+        onClose={() => setIsAiSettingsOpen(false)}
+        request={request}
+      />
     </div>
   );
 }

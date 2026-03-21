@@ -16,6 +16,23 @@ function assertCreatedBy(value: string): asserts value is "manual" | "ai" {
   }
 }
 
+function normalizeDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    throw new HttpError(400, "VALIDATION_ERROR", "task date must be YYYY-MM-DD");
+  }
+
+  return trimmed;
+}
+
 export class TaskService {
   constructor(
     private readonly taskRepository: TaskRepository,
@@ -42,6 +59,8 @@ export class TaskService {
       title: input.title.trim(),
       status: input.status ?? "open",
       tags,
+      startTargetDate: normalizeDate(input.startTargetDate),
+      dueDate: normalizeDate(input.dueDate),
       sourceNoteId: input.sourceNoteId ?? null,
       sourceSelectionText: input.sourceSelectionText?.trim() || null,
       createdBy: input.createdBy ?? "manual",
@@ -77,6 +96,12 @@ export class TaskService {
     const nextTitle = input.title !== undefined ? input.title.trim() : existing.title;
     const nextStatus = input.status ?? existing.status;
     const nextTags = sanitizeTags(input.tags ?? existing.tags);
+    const nextStartTargetDate = normalizeDate(
+      input.startTargetDate !== undefined ? input.startTargetDate : existing.startTargetDate,
+    );
+    const nextDueDate = normalizeDate(
+      input.dueDate !== undefined ? input.dueDate : existing.dueDate,
+    );
 
     if (!nextTitle) {
       throw new HttpError(400, "VALIDATION_ERROR", "task title is required");
@@ -93,6 +118,8 @@ export class TaskService {
       title: nextTitle,
       status: nextStatus,
       tags: nextTags,
+      startTargetDate: nextStartTargetDate,
+      dueDate: nextDueDate,
       updatedAt: new Date().toISOString(),
     });
 
@@ -128,6 +155,22 @@ export class TaskService {
       typeof input.sourceNoteId !== "string"
     ) {
       throw new HttpError(400, "VALIDATION_ERROR", "sourceNoteId must be a string");
+    }
+
+    if (
+      input.startTargetDate !== undefined &&
+      input.startTargetDate !== null &&
+      typeof input.startTargetDate !== "string"
+    ) {
+      throw new HttpError(400, "VALIDATION_ERROR", "startTargetDate must be a string");
+    }
+
+    if (
+      input.dueDate !== undefined &&
+      input.dueDate !== null &&
+      typeof input.dueDate !== "string"
+    ) {
+      throw new HttpError(400, "VALIDATION_ERROR", "dueDate must be a string");
     }
 
     if (

@@ -1,4 +1,4 @@
-type ThemeId = "soft-editorial" | "neo-workspace";
+type ThemeId = "soft-editorial" | "neo-workspace" | "modern-oasis";
 
 type AppearanceModalProps = {
   isOpen: boolean;
@@ -21,6 +21,11 @@ const THEME_OPTIONS: Array<{
     id: "neo-workspace",
     label: "Neo Workspace",
     description: "シャープで軽やかな、現代的なワークスペース風です。",
+  },
+  {
+    id: "modern-oasis",
+    label: "Modern Oasis",
+    description: "セージと砂色を基調にした、穏やかなボタニカル空間です。",
   },
 ];
 

@@ -66,6 +66,9 @@ function parseTaskInput(body: unknown): TaskInput {
     title: typeof payload.title === "string" ? payload.title : "",
     status: typeof payload.status === "string" ? payload.status : undefined,
     tags: Array.isArray(payload.tags) ? payload.tags : undefined,
+    startTargetDate:
+      typeof payload.startTargetDate === "string" ? payload.startTargetDate : null,
+    dueDate: typeof payload.dueDate === "string" ? payload.dueDate : null,
     sourceNoteId:
       typeof payload.sourceNoteId === "string" ? payload.sourceNoteId : null,
     sourceSelectionText:
@@ -84,6 +87,18 @@ function parseTaskUpdateInput(body: unknown): TaskUpdateInput {
     title: typeof payload.title === "string" ? payload.title : undefined,
     status: typeof payload.status === "string" ? payload.status : undefined,
     tags: Array.isArray(payload.tags) ? payload.tags : undefined,
+    startTargetDate:
+      typeof payload.startTargetDate === "string"
+        ? payload.startTargetDate
+        : payload.startTargetDate === null
+          ? null
+          : undefined,
+    dueDate:
+      typeof payload.dueDate === "string"
+        ? payload.dueDate
+        : payload.dueDate === null
+          ? null
+          : undefined,
   };
 }
 

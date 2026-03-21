@@ -87,8 +87,8 @@
 
 ### 4.4 テーマ切り替え
 
-1. アプリ上部の `テーマ` を押します
-2. `Soft Editorial` または `Neo Workspace` を選びます
+1. 歯車ボタンから `テーマ` を開きます
+2. `Soft Editorial`、`Neo Workspace`、`Modern Oasis` から選びます
 3. その場で見た目が切り替わります
 
 補足:

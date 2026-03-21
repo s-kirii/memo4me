@@ -8,6 +8,8 @@ type TaskItem = {
   title: string;
   status: TaskStatus;
   tags: string[];
+  startTargetDate: string | null;
+  dueDate: string | null;
   sourceNoteId: string | null;
   sourceNoteTitle: string | null;
   sourceSelectionText: string | null;
@@ -58,8 +60,12 @@ export function TasksModal({
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskTags, setNewTaskTags] = useState<string[]>([]);
+  const [newTaskStartTargetDate, setNewTaskStartTargetDate] = useState("");
+  const [newTaskDueDate, setNewTaskDueDate] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
   const [taskTagInputs, setTaskTagInputs] = useState<Record<string, string>>({});
+  const [taskStartTargetDates, setTaskStartTargetDates] = useState<Record<string, string>>({});
+  const [taskDueDates, setTaskDueDates] = useState<Record<string, string>>({});
   const [attachCurrentNote, setAttachCurrentNote] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -126,8 +132,12 @@ export function TasksModal({
     setActiveStatusTab("open");
     setNewTaskTitle(initialDraftTitle);
     setNewTaskTags(currentNoteId ? currentNoteTags : []);
+    setNewTaskStartTargetDate("");
+    setNewTaskDueDate("");
     setNewTagInput("");
     setTaskTagInputs({});
+    setTaskStartTargetDates({});
+    setTaskDueDates({});
   }, [currentNoteId, currentNoteTags, initialDraftTitle, isOpen]);
 
   const openTasks = useMemo(
@@ -188,6 +198,8 @@ export function TasksModal({
           title: newTaskTitle,
           status: "open",
           tags: newTaskTags,
+          startTargetDate: newTaskStartTargetDate || null,
+          dueDate: newTaskDueDate || null,
           sourceNoteId: attachCurrentNote ? currentNoteId : null,
           sourceSelectionText: initialSelectionText || null,
           createdBy: "manual",
@@ -197,6 +209,8 @@ export function TasksModal({
       setTasks((currentTasks) => [response.item, ...currentTasks]);
       setNewTaskTitle("");
       setNewTaskTags(attachCurrentNote && currentNoteId ? currentNoteTags : []);
+      setNewTaskStartTargetDate("");
+      setNewTaskDueDate("");
       setNewTagInput("");
     } catch (error) {
       setErrorMessage(
@@ -213,6 +227,8 @@ export function TasksModal({
       title?: string;
       status?: TaskStatus;
       tags?: string[];
+      startTargetDate?: string | null;
+      dueDate?: string | null;
     },
   ) => {
     const response = await request<{ item: TaskItem }>(`/tasks/${taskId}`, {
@@ -285,7 +301,7 @@ export function TasksModal({
             className="ghost-button tag-add-button"
             onClick={() => onAddTag(inputValue)}
           >
-            タグを追加
+            タグ追加
           </button>
         </div>
 
@@ -354,13 +370,9 @@ export function TasksModal({
             </label>
 
             <div className="task-meta-row">
-              <span className={`task-origin-pill is-${task.createdBy}`}>
-                {task.createdBy === "ai" ? "AI" : "手動"}
-              </span>
-              <span>{formatDateTime(task.updatedAt)}</span>
-            </div>
-
-            <div className="task-source-row">
+              {task.createdBy === "ai" ? (
+                <span className="task-ai-badge">AI</span>
+              ) : null}
               {task.sourceNoteId ? (
                 <button
                   type="button"
@@ -375,9 +387,10 @@ export function TasksModal({
               ) : (
                 <span className="inline-note">元メモなし</span>
               )}
+              <span>{formatDateTime(task.updatedAt)}</span>
               <button
                 type="button"
-                className="ghost-button danger-button"
+                className="ghost-button danger-button task-delete-button"
                 onClick={() => void deleteTask(task.id)}
               >
                 削除
@@ -387,6 +400,45 @@ export function TasksModal({
             {task.sourceSelectionText ? (
               <p className="task-selection-preview">{task.sourceSelectionText}</p>
             ) : null}
+
+            <div className="task-date-row">
+              <label className="task-date-field">
+                <span>着手目標</span>
+                <input
+                  type="date"
+                  value={taskStartTargetDates[task.id] ?? task.startTargetDate ?? ""}
+                  onChange={(event) =>
+                    setTaskStartTargetDates((current) => ({
+                      ...current,
+                      [task.id]: event.target.value,
+                    }))
+                  }
+                  onBlur={(event) =>
+                    void updateTask(task.id, {
+                      startTargetDate: event.target.value || null,
+                    })
+                  }
+                />
+              </label>
+              <label className="task-date-field">
+                <span>期日</span>
+                <input
+                  type="date"
+                  value={taskDueDates[task.id] ?? task.dueDate ?? ""}
+                  onChange={(event) =>
+                    setTaskDueDates((current) => ({
+                      ...current,
+                      [task.id]: event.target.value,
+                    }))
+                  }
+                  onBlur={(event) =>
+                    void updateTask(task.id, {
+                      dueDate: event.target.value || null,
+                    })
+                  }
+                />
+              </label>
+            </div>
 
             {renderTagEditor(
               task.tags,
@@ -444,11 +496,11 @@ export function TasksModal({
             />
             <button
               type="button"
-              className="primary-button"
+              className="primary-button task-create-button"
               onClick={() => void handleCreateTask()}
               disabled={!newTaskTitle.trim() || isCreating}
             >
-              {isCreating ? "追加中..." : "タスクを追加"}
+              {isCreating ? "追加中..." : "追加"}
             </button>
           </div>
           <label className="task-attach-toggle">
@@ -466,6 +518,25 @@ export function TasksModal({
           {initialSelectionText ? (
             <p className="task-selection-preview is-draft">{initialSelectionText}</p>
           ) : null}
+
+          <div className="task-create-details">
+            <label className="task-date-field">
+              <span>着手目標</span>
+              <input
+                type="date"
+                value={newTaskStartTargetDate}
+                onChange={(event) => setNewTaskStartTargetDate(event.target.value)}
+              />
+            </label>
+            <label className="task-date-field">
+              <span>期日</span>
+              <input
+                type="date"
+                value={newTaskDueDate}
+                onChange={(event) => setNewTaskDueDate(event.target.value)}
+              />
+            </label>
+          </div>
 
           {renderTagEditor(
             newTaskTags,

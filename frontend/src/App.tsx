@@ -45,7 +45,7 @@ type EditorDraft = {
   tags: string[];
 };
 
-type ThemeId = "soft-editorial" | "neo-workspace";
+type ThemeId = "soft-editorial" | "neo-workspace" | "modern-oasis";
 
 const THEME_STORAGE_KEY = "memo4me.theme";
 
@@ -87,6 +87,18 @@ function normalizeTag(value: string) {
   return value.trim().toLowerCase();
 }
 
+function isDraftDirty(draft: EditorDraft, selectedNote: NoteDetail | null) {
+  if (!selectedNote) {
+    return false;
+  }
+
+  return (
+    draft.title !== selectedNote.title ||
+    draft.contentMd !== selectedNote.contentMd ||
+    JSON.stringify(draft.tags) !== JSON.stringify(selectedNote.tags)
+  );
+}
+
 function App() {
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -111,9 +123,14 @@ function App() {
   const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isTagFilterMenuOpen, setIsTagFilterMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeId>(() => {
     const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return savedTheme === "neo-workspace" ? "neo-workspace" : "soft-editorial";
+    if (savedTheme === "neo-workspace" || savedTheme === "modern-oasis") {
+      return savedTheme;
+    }
+
+    return "soft-editorial";
   });
   const [selectedEditorText, setSelectedEditorText] = useState("");
   const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
@@ -125,9 +142,13 @@ function App() {
   const saveTimerRef = useRef<number | null>(null);
   const listReloadTimerRef = useRef<number | null>(null);
   const skipNextAutosaveRef = useRef(true);
+  const draftRef = useRef(draft);
+  const selectedNoteRef = useRef<NoteDetail | null>(selectedNote);
+  const saveInFlightRef = useRef<Promise<NoteDetail | null> | null>(null);
   const tagInputShellRef = useRef<HTMLDivElement | null>(null);
   const tagSuggestionButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+  const tagFilterMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadNotes = async (options?: { preferredSelectedId?: string | null }) => {
     setIsListLoading(true);
@@ -227,8 +248,116 @@ function App() {
   }, [isSettingsMenuOpen]);
 
   useEffect(() => {
+    if (!isTagFilterMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (tagFilterMenuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsTagFilterMenuOpen(false);
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isTagFilterMenuOpen]);
+
+  useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    selectedNoteRef.current = selectedNote;
+  }, [selectedNote]);
+
+  const persistDraft = async (
+    note = selectedNoteRef.current,
+    nextDraft = draftRef.current,
+  ) => {
+    if (!note || !isDraftDirty(nextDraft, note)) {
+      return null;
+    }
+
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    if (saveInFlightRef.current) {
+      return saveInFlightRef.current;
+    }
+
+    setSaveState("saving");
+
+    const savePromise = (async () => {
+      try {
+        const updated = await request<NoteDetail>(`/notes/${note.id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            title: nextDraft.title,
+            contentMd: nextDraft.contentMd,
+            tags: nextDraft.tags,
+          }),
+        });
+
+        setSelectedNote((currentNote) =>
+          currentNote?.id === updated.id ? updated : currentNote,
+        );
+        setDraft((currentDraft) => {
+          if (note.id !== selectedNoteRef.current?.id) {
+            return currentDraft;
+          }
+
+          return {
+            title: updated.title,
+            contentMd: updated.contentMd,
+            tags: updated.tags,
+          };
+        });
+        draftRef.current = {
+          title: updated.title,
+          contentMd: updated.contentMd,
+          tags: updated.tags,
+        };
+        selectedNoteRef.current = updated;
+        setNotes((currentNotes) =>
+          currentNotes.map((listNote) =>
+            listNote.id === updated.id
+              ? {
+                  ...listNote,
+                  title: updated.title,
+                  excerpt: getExcerptFromMarkdown(updated.contentMd),
+                  tags: updated.tags,
+                  updatedAt: updated.updatedAt,
+                }
+              : listNote,
+          ),
+        );
+        await loadTags();
+        setSaveState("saved");
+        setErrorMessage(null);
+        return updated;
+      } catch (error) {
+        setSaveState("error");
+        setErrorMessage(error instanceof Error ? error.message : "メモの保存に失敗しました");
+        return null;
+      } finally {
+        saveInFlightRef.current = null;
+      }
+    })();
+
+    saveInFlightRef.current = savePromise;
+    return savePromise;
+  };
 
   useEffect(() => {
     if (listReloadTimerRef.current !== null) {
@@ -262,12 +391,7 @@ function App() {
       return;
     }
 
-    const isDirty =
-      draft.title !== selectedNote.title ||
-      draft.contentMd !== selectedNote.contentMd ||
-      JSON.stringify(draft.tags) !== JSON.stringify(selectedNote.tags);
-
-    if (!isDirty) {
+    if (!isDraftDirty(draft, selectedNote)) {
       return;
     }
 
@@ -283,42 +407,7 @@ function App() {
     setSaveState("saving");
 
     saveTimerRef.current = window.setTimeout(async () => {
-      try {
-        const updated = await request<NoteDetail>(`/notes/${selectedNote.id}`, {
-          method: "PUT",
-          body: JSON.stringify({
-            title: draft.title,
-            contentMd: draft.contentMd,
-            tags: draft.tags,
-          }),
-        });
-
-        setSelectedNote(updated);
-        setDraft({
-          title: updated.title,
-          contentMd: updated.contentMd,
-          tags: updated.tags,
-        });
-        setNotes((currentNotes) =>
-          currentNotes.map((note) =>
-            note.id === updated.id
-              ? {
-                  ...note,
-                  title: updated.title,
-                  excerpt: getExcerptFromMarkdown(updated.contentMd),
-                  tags: updated.tags,
-                  updatedAt: updated.updatedAt,
-                }
-              : note,
-          ),
-        );
-        await loadTags();
-        setSaveState("saved");
-        setErrorMessage(null);
-      } catch (error) {
-        setSaveState("error");
-        setErrorMessage(error instanceof Error ? error.message : "メモの保存に失敗しました");
-      }
+      await persistDraft(selectedNote, draft);
     }, 800);
 
     return () => {
@@ -327,6 +416,15 @@ function App() {
       }
     };
   }, [draft, selectedNote]);
+
+  const handleSelectNote = async (noteId: string) => {
+    if (noteId === selectedNoteId) {
+      return;
+    }
+
+    await persistDraft();
+    setSelectedNoteId(noteId);
+  };
 
   const handleCreateNote = async () => {
     try {
@@ -387,6 +485,11 @@ function App() {
   };
 
   const handleExitApp = async () => {
+    const confirmed = window.confirm("アプリを終了しますか？");
+    if (!confirmed) {
+      return;
+    }
+
     setIsExiting(true);
     setErrorMessage(null);
 
@@ -581,6 +684,25 @@ function App() {
     return tagNames;
   }, [selectedTagFilter, tags]);
 
+  const visibleFilterTags = useMemo(() => {
+    const baseTags =
+      selectedTagFilter && selectedTagFilter !== null
+        ? availableFilterTags.filter((tag) => tag !== selectedTagFilter)
+        : availableFilterTags;
+    const nextVisible = baseTags.slice(0, 6);
+
+    if (selectedTagFilter && !nextVisible.includes(selectedTagFilter)) {
+      return [selectedTagFilter, ...nextVisible].slice(0, 7);
+    }
+
+    return nextVisible;
+  }, [availableFilterTags, selectedTagFilter]);
+
+  const overflowFilterTags = useMemo(
+    () => availableFilterTags.filter((tag) => !visibleFilterTags.includes(tag)),
+    [availableFilterTags, visibleFilterTags],
+  );
+
   const showEmptyState = !selectedNoteId || !selectedNote;
   const hasTaskSelection = selectedEditorText.trim().length > 0;
   const emptyStateTitle =
@@ -609,7 +731,7 @@ function App() {
             className="ghost-button"
             onClick={() => setIsTasksOpen(true)}
           >
-            タスク
+            タスクリスト管理
           </button>
           <button className="primary-button" onClick={() => void handleCreateNote()}>
             新規メモ
@@ -701,7 +823,7 @@ function App() {
                   >
                     すべて
                   </button>
-                  {availableFilterTags.map((tag) => (
+                  {visibleFilterTags.map((tag) => (
                     <button
                       key={tag}
                       className={`tag-chip${
@@ -717,6 +839,42 @@ function App() {
                       {tag}
                     </button>
                   ))}
+                  {overflowFilterTags.length > 0 ? (
+                    <div ref={tagFilterMenuRef} className="tag-filter-menu">
+                      <button
+                        type="button"
+                        className="tag-chip"
+                        onClick={() => setIsTagFilterMenuOpen((current) => !current)}
+                        aria-expanded={isTagFilterMenuOpen}
+                      >
+                        その他...
+                      </button>
+
+                      {isTagFilterMenuOpen ? (
+                        <div className="tag-filter-popover">
+                          <div className="tag-filter-popover-list">
+                            {overflowFilterTags.map((tag) => (
+                              <button
+                                key={tag}
+                                type="button"
+                                className={`tag-filter-popover-item${
+                                  selectedTagFilter === tag ? " is-active" : ""
+                                }`}
+                                onClick={() => {
+                                  setSelectedTagFilter((currentTag) =>
+                                    currentTag === tag ? null : tag,
+                                  );
+                                  setIsTagFilterMenuOpen(false);
+                                }}
+                              >
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -741,7 +899,7 @@ function App() {
                     className={`note-list-item${
                       note.id === selectedNoteId ? " is-selected" : ""
                     }`}
-                    onClick={() => setSelectedNoteId(note.id)}
+                    onClick={() => void handleSelectNote(note.id)}
                   >
                     <div className="note-list-item-title">
                       {getDisplayTitle(note.title)}
@@ -773,7 +931,6 @@ function App() {
             <>
               <div className="editor-meta">
                 <div>
-                  <p className="eyebrow">選択中のメモ</p>
                   <p className="updated-at">
                     {isDetailLoading
                       ? "読み込み中..."
@@ -795,7 +952,7 @@ function App() {
                     className="ghost-button"
                     onClick={() => setIsAiAssistantOpen(true)}
                   >
-                    AI
+                    AIアシスタント
                   </button>
                   <span className={`save-status is-${saveState}`}>
                     {saveState === "saving" && "保存中..."}

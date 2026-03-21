@@ -494,7 +494,7 @@ function App() {
               </div>
 
               <div className="editor-divider">
-                <span>Body</span>
+                <span>memorandum</span>
               </div>
 
               <div className="editor-body">

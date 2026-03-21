@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AiTaskCandidatesModal } from "./AiTaskCandidatesModal";
 
 type AiActionType =
   | "summary"
@@ -16,6 +17,11 @@ type AiOutputItem = {
   model: string;
   contentMd: string;
   createdAt: string;
+};
+
+type AiTaskCandidate = {
+  id: string;
+  title: string;
 };
 
 type AiAssistantModalProps = {
@@ -66,6 +72,42 @@ function getOutputTitle(action: AiActionType) {
   }
 }
 
+function normalizeTaskLine(line: string) {
+  if (!/^(\s*[-*+]\s+(\[(?: |x|X)\]\s+)?.+|\s*\d+\.\s+.+)$/.test(line)) {
+    return "";
+  }
+
+  return line
+    .trim()
+    .replace(/^[-*+]\s+\[(?: |x|X)\]\s+/, "")
+    .replace(/^[-*+]\s+/, "")
+    .replace(/^\d+\.\s+/, "")
+    .trim();
+}
+
+function parseTaskCandidatesFromMarkdown(contentMd: string): AiTaskCandidate[] {
+  const uniqueTitles = new Set<string>();
+
+  return contentMd
+    .split("\n")
+    .map((line) => normalizeTaskLine(line))
+    .filter(Boolean)
+    .filter((line) => !/^no clear action items\.?$/i.test(line))
+    .filter((line) => {
+      const normalized = line.toLowerCase();
+      if (uniqueTitles.has(normalized)) {
+        return false;
+      }
+
+      uniqueTitles.add(normalized);
+      return true;
+    })
+    .map((title, index) => ({
+      id: `${title}-${index}`,
+      title,
+    }));
+}
+
 export function AiAssistantModal({
   isOpen,
   note,
@@ -83,6 +125,8 @@ export function AiAssistantModal({
   const [isSavingNewNote, setIsSavingNewNote] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [taskCandidates, setTaskCandidates] = useState<AiTaskCandidate[]>([]);
+  const [isTaskCandidatesOpen, setIsTaskCandidatesOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !note) {
@@ -133,6 +177,13 @@ export function AiAssistantModal({
     () => history.find((item) => item.id === selectedOutputId) ?? history[0] ?? null,
     [history, selectedOutputId],
   );
+  const derivedTaskCandidates = useMemo(
+    () =>
+      selectedOutput?.action === "extract_action_items"
+        ? parseTaskCandidatesFromMarkdown(selectedOutput.contentMd)
+        : [],
+    [selectedOutput],
+  );
 
   if (!isOpen || !note) {
     return null;
@@ -144,20 +195,39 @@ export function AiAssistantModal({
     setSuccessMessage(null);
 
     try {
-      const response = await request<{ item: AiOutputItem }>(
-        `/notes/${note.id}/ai/run`,
-        {
+      if (selectedAction === "extract_action_items") {
+        const response = await request<{
+          item: AiOutputItem;
+          candidates: AiTaskCandidate[];
+        }>(`/notes/${note.id}/ai/task-candidates`, {
           method: "POST",
-          body: JSON.stringify({
-            action: selectedAction,
-            prompt: selectedAction === "quick_prompt" ? quickPrompt : undefined,
-          }),
-        },
-      );
+        });
 
-      setHistory((currentHistory) => [response.item, ...currentHistory]);
-      setSelectedOutputId(response.item.id);
-      setSuccessMessage(`${getOutputTitle(response.item.action)} generated.`);
+        setHistory((currentHistory) => [response.item, ...currentHistory]);
+        setSelectedOutputId(response.item.id);
+        setTaskCandidates(response.candidates);
+        setIsTaskCandidatesOpen(true);
+        setSuccessMessage(
+          response.candidates.length > 0
+            ? `${response.candidates.length} task candidates generated.`
+            : "No clear AI task candidates were found.",
+        );
+      } else {
+        const response = await request<{ item: AiOutputItem }>(
+          `/notes/${note.id}/ai/run`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              action: selectedAction,
+              prompt: selectedAction === "quick_prompt" ? quickPrompt : undefined,
+            }),
+          },
+        );
+
+        setHistory((currentHistory) => [response.item, ...currentHistory]);
+        setSelectedOutputId(response.item.id);
+        setSuccessMessage(`${getOutputTitle(response.item.action)} generated.`);
+      }
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "failed to run AI action",
@@ -323,6 +393,19 @@ export function AiAssistantModal({
                 <h3>{selectedOutput ? getOutputTitle(selectedOutput.action) : "No output yet"}</h3>
               </div>
               <div className="editor-meta-actions">
+                {selectedOutput?.action === "extract_action_items" ? (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => {
+                      setTaskCandidates(derivedTaskCandidates);
+                      setIsTaskCandidatesOpen(true);
+                    }}
+                    disabled={derivedTaskCandidates.length === 0}
+                  >
+                    Review task candidates
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="ghost-button"
@@ -364,6 +447,17 @@ export function AiAssistantModal({
             </div>
           </section>
         </div>
+        <AiTaskCandidatesModal
+          isOpen={isTaskCandidatesOpen}
+          noteId={note.id}
+          noteTitle={note.title}
+          candidates={taskCandidates}
+          onClose={() => setIsTaskCandidatesOpen(false)}
+          onSaved={(items) => {
+            setSuccessMessage(`${items.length} AI tasks saved.`);
+          }}
+          request={request}
+        />
       </div>
     </div>
   );

@@ -624,6 +624,51 @@
   background: rgba(255, 255, 255, 0.52);
 }
 
+.ai-task-candidates-modal {
+  width: min(720px, 100%);
+  padding: 22px;
+}
+
+.task-candidate-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.task-candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.task-candidate-card {
+  display: block;
+  padding: 14px;
+  border: 1px solid rgba(62, 41, 25, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.task-candidate-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.task-candidate-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid rgba(62, 41, 25, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 250, 243, 0.94);
+  color: #241b12;
+}
+
 .editor-meta {
   display: flex;
   align-items: flex-start;

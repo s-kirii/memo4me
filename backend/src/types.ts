@@ -110,6 +110,16 @@ export type AiOutputItem = {
   createdAt: string;
 };
 
+export type AiTaskCandidate = {
+  id: string;
+  title: string;
+};
+
+export type AiExtractTaskCandidatesResult = {
+  item: AiOutputItem;
+  candidates: AiTaskCandidate[];
+};
+
 export type TaskStatus = "open" | "done";
 
 export type TaskOrigin = "manual" | "ai";
@@ -132,6 +142,10 @@ export type TaskInput = {
   sourceNoteId?: string | null;
   sourceSelectionText?: string | null;
   createdBy?: TaskOrigin;
+};
+
+export type TaskBulkCreateInput = {
+  items: TaskInput[];
 };
 
 export type TaskUpdateInput = {

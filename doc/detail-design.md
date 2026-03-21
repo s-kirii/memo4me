@@ -749,7 +749,21 @@ UI:
 - 実行成功時は `ai_outputs` に保存する
 - `quick_prompt` は追加の user prompt を要求する
 
-### 9.15 `GET /api/tasks`
+### 9.15 `POST /api/notes/:id/ai/task-candidates`
+
+目的:
+
+- メモ全文から AI にタスク候補を抽出させる
+
+ルール:
+
+- 内部的には `extract_action_items` 相当の AI 実行を行う
+- 実行成功時は `ai_outputs` に保存する
+- レスポンスには Markdown 出力本体と task candidate 配列を含める
+- 重複候補は除外する
+- チェックリスト / 箇条書き / 番号付き以外の説明文は候補に含めない
+
+### 9.16 `GET /api/tasks`
 
 目的:
 
@@ -760,7 +774,7 @@ UI:
 - `open` を先、`done` を後ろに並べる
 - 各タスクは source note 情報を含んでよい
 
-### 9.16 `POST /api/tasks`
+### 9.17 `POST /api/tasks`
 
 目的:
 
@@ -771,13 +785,26 @@ UI:
 - `sourceNoteId` は null を許容する
 - `createdBy` は `manual` / `ai`
 
-### 9.17 `PUT /api/tasks/:id`
+### 9.18 `POST /api/tasks/bulk`
+
+目的:
+
+- 複数タスクを一括保存する
+
+ルール:
+
+- Phase 14 では AI 候補保存用に利用する
+- 最大 50 件まで保存可能とする
+- 各 item は単体 `POST /api/tasks` と同等の validation を行う
+- AI 候補保存時は `createdBy=ai` を付与する
+
+### 9.19 `PUT /api/tasks/:id`
 
 目的:
 
 - タスク title / status 更新
 
-### 9.18 `DELETE /api/tasks/:id`
+### 9.20 `DELETE /api/tasks/:id`
 
 目的:
 
@@ -986,6 +1013,7 @@ frontend/
   - タグ入力欄
   - AI 設定モーダルの開閉状態
   - AI Assistant モーダルの開閉状態
+  - AI task candidate review モーダルの開閉状態
   - Tasks モーダルの開閉状態
   - 保存状態
   - エディタ内部 state
@@ -1054,8 +1082,10 @@ backend/
 - `POST /api/ai/settings/test`
 - `GET /api/notes/:id/ai-outputs`
 - `POST /api/notes/:id/ai/run`
+- `POST /api/notes/:id/ai/task-candidates`
 - `GET /api/tasks`
 - `POST /api/tasks`
+- `POST /api/tasks/bulk`
 - `PUT /api/tasks/:id`
 - `DELETE /api/tasks/:id`
 
@@ -1318,6 +1348,7 @@ README または配布資料には以下を明記する。
 - AI Assistant モーダル
 - 要約 / 構造化 / アクション抽出 / quick prompt 実行
 - AI 出力履歴保存
+- Action items からの AI task candidate review
 - タスクリストモーダル
 - tasks CRUD API
 - source note 付きタスク管理
@@ -1328,7 +1359,6 @@ README または配布資料には以下を明記する。
 - GitHub Releases の実運用確認
 - 配布物ダウンロードからの導入確認
 - 更新版の再配布と差し替え導入確認
-- 範囲選択からのタスク追加
 - 範囲選択位置情報の永続化
 
 ## 19. 要確認事項

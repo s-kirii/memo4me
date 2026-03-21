@@ -2,7 +2,13 @@ import { createAiProviderAdapter } from "../ai/provider-adapters";
 import { AiOutputRepository } from "../repositories/ai-output-repository";
 import { NoteRepository } from "../repositories/note-repository";
 import { AiSettingsService } from "./ai-settings-service";
-import type { AiActionType, AiOutputItem, AiRunNoteInput } from "../types";
+import type {
+  AiActionType,
+  AiExtractTaskCandidatesResult,
+  AiOutputItem,
+  AiRunNoteInput,
+  AiTaskCandidate,
+} from "../types";
 import { HttpError } from "../utils/http-error";
 
 const ACTION_LABELS: Record<AiActionType, string> = {
@@ -88,6 +94,44 @@ function buildPrompts(
   };
 }
 
+function normalizeTaskLine(line: string) {
+  if (!/^(\s*[-*+]\s+(\[(?: |x|X)\]\s+)?.+|\s*\d+\.\s+.+)$/.test(line)) {
+    return "";
+  }
+
+  return line
+    .trim()
+    .replace(/^[-*+]\s+\[(?: |x|X)\]\s+/, "")
+    .replace(/^[-*+]\s+/, "")
+    .replace(/^\d+\.\s+/, "")
+    .trim();
+}
+
+function extractTaskCandidatesFromMarkdown(contentMd: string): AiTaskCandidate[] {
+  const rawLines = contentMd
+    .split("\n")
+    .map((line) => normalizeTaskLine(line))
+    .filter(Boolean)
+    .filter((line) => !/^no clear action items\.?$/i.test(line));
+
+  const uniqueTitles = new Set<string>();
+
+  return rawLines
+    .filter((line) => {
+      const normalized = line.toLowerCase();
+      if (uniqueTitles.has(normalized)) {
+        return false;
+      }
+
+      uniqueTitles.add(normalized);
+      return true;
+    })
+    .map((title) => ({
+      id: crypto.randomUUID(),
+      title,
+    }));
+}
+
 export class AiExecutionService {
   constructor(
     private readonly noteRepository: NoteRepository,
@@ -104,6 +148,30 @@ export class AiExecutionService {
   }
 
   async runForNote(noteId: string, input: AiRunNoteInput): Promise<AiOutputItem> {
+    return this.runOutputForNote(noteId, input);
+  }
+
+  async extractTaskCandidatesForNote(
+    noteId: string,
+  ): Promise<AiExtractTaskCandidatesResult> {
+    const item = await this.runOutputForNote(noteId, {
+      action: "extract_action_items",
+    });
+
+    return {
+      item,
+      candidates: extractTaskCandidatesFromMarkdown(item.contentMd),
+    };
+  }
+
+  getActionLabel(action: AiActionType) {
+    return ACTION_LABELS[action];
+  }
+
+  private async runOutputForNote(
+    noteId: string,
+    input: AiRunNoteInput,
+  ): Promise<AiOutputItem> {
     if (!this.noteRepository.noteExists(noteId)) {
       throw new HttpError(404, "NOT_FOUND", "note was not found");
     }
@@ -159,9 +227,5 @@ export class AiExecutionService {
     });
 
     return output;
-  }
-
-  getActionLabel(action: AiActionType) {
-    return ACTION_LABELS[action];
   }
 }

@@ -9,6 +9,7 @@ import type {
   AiRunNoteInput,
   AiSettingsInput,
   NoteInput,
+  TaskBulkCreateInput,
   TaskInput,
   TaskUpdateInput,
 } from "../types";
@@ -81,6 +82,16 @@ function parseTaskUpdateInput(body: unknown): TaskUpdateInput {
   return {
     title: typeof payload.title === "string" ? payload.title : undefined,
     status: typeof payload.status === "string" ? payload.status : undefined,
+  };
+}
+
+function parseTaskBulkCreateInput(body: unknown): TaskBulkCreateInput {
+  const payload = body as Partial<TaskBulkCreateInput>;
+
+  return {
+    items: Array.isArray(payload.items)
+      ? payload.items.map((item) => parseTaskInput(item))
+      : [],
   };
 }
 
@@ -169,6 +180,17 @@ export function createApiRouter(
     }
   });
 
+  router.post("/notes/:id/ai/task-candidates", async (req, res, next) => {
+    try {
+      const result = await aiExecutionService.extractTaskCandidatesForNote(
+        req.params.id,
+      );
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get("/tasks", (_req, res) => {
     const items = taskService.listTasks();
     res.json({ items });
@@ -177,6 +199,11 @@ export function createApiRouter(
   router.post("/tasks", (req, res) => {
     const item = taskService.createTask(parseTaskInput(req.body));
     res.status(201).json({ item });
+  });
+
+  router.post("/tasks/bulk", (req, res) => {
+    const items = taskService.createTasks(parseTaskBulkCreateInput(req.body).items);
+    res.status(201).json({ items });
   });
 
   router.put("/tasks/:id", (req, res) => {

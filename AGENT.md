@@ -63,6 +63,7 @@ At the time this file was written, the following areas are already implemented.
 - AI assistant modal
 - summarize / structure / action-item extraction / quick prompt execution
 - AI output history persistence
+- AI task candidate review flow
 - task list modal
 - tasks CRUD API with source-note linkage
 
@@ -108,6 +109,7 @@ Key files and responsibilities:
 - App shell and main UI: [App.tsx](/xxxxx/memo4me/frontend/src/App.tsx)
 - Main frontend styling: [App.css](/xxxxx/memo4me/frontend/src/App.css)
 - AI assistant modal: [AiAssistantModal.tsx](/xxxxx/memo4me/frontend/src/components/AiAssistantModal.tsx)
+- AI task candidate modal: [AiTaskCandidatesModal.tsx](/xxxxx/memo4me/frontend/src/components/AiTaskCandidatesModal.tsx)
 - tasks modal: [TasksModal.tsx](/xxxxx/memo4me/frontend/src/components/TasksModal.tsx)
 - AI settings modal: [AiSettingsModal.tsx](/xxxxx/memo4me/frontend/src/components/AiSettingsModal.tsx)
 - Rich editor component: [RichTextEditor.tsx](/xxxxx/memo4me/frontend/src/components/RichTextEditor.tsx)
@@ -115,6 +117,7 @@ Key files and responsibilities:
 - API routes: [api.ts](/xxxxx/memo4me/backend/src/routes/api.ts)
 - AI settings service: [ai-settings-service.ts](/xxxxx/memo4me/backend/src/services/ai-settings-service.ts)
 - AI execution service: [ai-execution-service.ts](/xxxxx/memo4me/backend/src/services/ai-execution-service.ts)
+- task service: [task-service.ts](/xxxxx/memo4me/backend/src/services/task-service.ts)
 - Domain/service layer: [note-service.ts](/xxxxx/memo4me/backend/src/services/note-service.ts)
 - Note repository: [note-repository.ts](/xxxxx/memo4me/backend/src/repositories/note-repository.ts)
 - AI settings repository: [ai-settings-repository.ts](/xxxxx/memo4me/backend/src/repositories/ai-settings-repository.ts)

@@ -1,6 +1,6 @@
 import { NoteRepository } from "../repositories/note-repository";
 import { TaskRepository } from "../repositories/task-repository";
-import type { TaskInput, TaskUpdateInput } from "../types";
+import type { TaskInput, TaskItem, TaskUpdateInput } from "../types";
 import { HttpError } from "../utils/http-error";
 
 function assertStatus(value: string): asserts value is "open" | "done" {
@@ -45,6 +45,22 @@ export class TaskService {
     });
 
     return this.taskRepository.list()[0] ?? null;
+  }
+
+  createTasks(items: TaskInput[]): TaskItem[] {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new HttpError(400, "VALIDATION_ERROR", "items are required");
+    }
+
+    if (items.length > 50) {
+      throw new HttpError(400, "VALIDATION_ERROR", "too many tasks requested");
+    }
+
+    const createdIds = items.map((item) => this.createTask(item)?.id).filter(Boolean);
+
+    return createdIds
+      .map((id) => this.taskRepository.findById(id as string))
+      .filter((item): item is TaskItem => item !== null);
   }
 
   updateTask(id: string, input: TaskUpdateInput) {

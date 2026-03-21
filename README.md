@@ -105,6 +105,8 @@ Chrome が見つからない場合は起動失敗になる。
 - Header の `Tasks` からタスクリストモーダルを開ける
 - `Summary` / `Structure` / `Action items` / `Quick prompt` を実行できる
 - 結果はメモ単位で履歴保存される
+- `Action items` 実行後は AI task candidates を確認して選択保存できる
+- AI 保存タスクは `Tasks` モーダルで `AI` バッジ付きで表示される
 
 補足:
 

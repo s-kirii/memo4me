@@ -1,0 +1,370 @@
+import { useEffect, useMemo, useState } from "react";
+
+type AiActionType =
+  | "summary"
+  | "structure"
+  | "extract_action_items"
+  | "quick_prompt";
+
+type AiProviderId = "openai_compatible" | "azure_openai" | "gemini";
+
+type AiOutputItem = {
+  id: string;
+  noteId: string;
+  provider: AiProviderId;
+  action: AiActionType;
+  model: string;
+  contentMd: string;
+  createdAt: string;
+};
+
+type AiAssistantModalProps = {
+  isOpen: boolean;
+  note: {
+    id: string;
+    title: string;
+    contentMd: string;
+  } | null;
+  onClose: () => void;
+  onApplyToNote: (contentMd: string) => void;
+  onCreateNoteFromOutput: (title: string, contentMd: string) => Promise<void>;
+  request: <T>(path: string, init?: RequestInit) => Promise<T>;
+};
+
+const ACTION_OPTIONS: Array<{ id: AiActionType; label: string }> = [
+  { id: "summary", label: "Summarize" },
+  { id: "structure", label: "Structure" },
+  { id: "extract_action_items", label: "Action items" },
+  { id: "quick_prompt", label: "Quick prompt" },
+];
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getOutputTitle(action: AiActionType) {
+  switch (action) {
+    case "summary":
+      return "Summary";
+    case "structure":
+      return "Structured note";
+    case "extract_action_items":
+      return "Action items";
+    case "quick_prompt":
+    default:
+      return "Quick prompt result";
+  }
+}
+
+export function AiAssistantModal({
+  isOpen,
+  note,
+  onClose,
+  onApplyToNote,
+  onCreateNoteFromOutput,
+  request,
+}: AiAssistantModalProps) {
+  const [history, setHistory] = useState<AiOutputItem[]>([]);
+  const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null);
+  const [selectedAction, setSelectedAction] = useState<AiActionType>("summary");
+  const [quickPrompt, setQuickPrompt] = useState("");
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isSavingNewNote, setIsSavingNewNote] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen || !note) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      setIsLoadingHistory(true);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+
+      try {
+        const response = await request<{ items: AiOutputItem[] }>(
+          `/notes/${note.id}/ai-outputs`,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setHistory(response.items);
+        setSelectedOutputId(response.items[0]?.id ?? null);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setErrorMessage(
+          error instanceof Error ? error.message : "failed to load AI history",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoadingHistory(false);
+        }
+      }
+    };
+
+    void loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, note, request]);
+
+  const selectedOutput = useMemo(
+    () => history.find((item) => item.id === selectedOutputId) ?? history[0] ?? null,
+    [history, selectedOutputId],
+  );
+
+  if (!isOpen || !note) {
+    return null;
+  }
+
+  const handleRun = async () => {
+    setIsRunning(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const response = await request<{ item: AiOutputItem }>(
+        `/notes/${note.id}/ai/run`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: selectedAction,
+            prompt: selectedAction === "quick_prompt" ? quickPrompt : undefined,
+          }),
+        },
+      );
+
+      setHistory((currentHistory) => [response.item, ...currentHistory]);
+      setSelectedOutputId(response.item.id);
+      setSuccessMessage(`${getOutputTitle(response.item.action)} generated.`);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "failed to run AI action",
+      );
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!selectedOutput) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(selectedOutput.contentMd);
+      setSuccessMessage("Copied to clipboard.");
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("failed to copy to clipboard");
+    }
+  };
+
+  const handleSaveAsNewNote = async () => {
+    if (!selectedOutput) {
+      return;
+    }
+
+    setIsSavingNewNote(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const titleSuffix =
+        selectedOutput.action === "summary"
+          ? "Summary"
+          : selectedOutput.action === "structure"
+            ? "Structured"
+            : selectedOutput.action === "extract_action_items"
+              ? "Action items"
+              : "AI result";
+      const noteTitle = `${note.title.trim() || "Untitled"} - ${titleSuffix}`;
+
+      await onCreateNoteFromOutput(noteTitle, selectedOutput.contentMd);
+      setSuccessMessage("Saved as a new note.");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "failed to save as a new note",
+      );
+    } finally {
+      setIsSavingNewNote(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="modal-card ai-assistant-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-assistant-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-header">
+          <div>
+            <p className="eyebrow">AI</p>
+            <h2 id="ai-assistant-title">AI Assistant</h2>
+            <p className="modal-description">
+              Run note-aware AI actions, review the result, then apply or save it.
+            </p>
+          </div>
+          <button type="button" className="ghost-button modal-close" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        <div className="ai-assistant-layout">
+          <section className="ai-assistant-sidebar">
+            <div className="modal-section">
+              <div className="section-heading">
+                <h3>Actions</h3>
+                <p>Select how AI should help with this note.</p>
+              </div>
+              <div className="provider-pill-row">
+                {ACTION_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`provider-pill${
+                      selectedAction === option.id ? " is-active" : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedAction(option.id);
+                      setErrorMessage(null);
+                      setSuccessMessage(null);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              {selectedAction === "quick_prompt" ? (
+                <label className="field">
+                  <span>Prompt</span>
+                  <textarea
+                    className="ai-prompt-textarea"
+                    value={quickPrompt}
+                    onChange={(event) => setQuickPrompt(event.target.value)}
+                    placeholder="Ask AI to rewrite, classify, or inspect this note."
+                  />
+                </label>
+              ) : null}
+
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => void handleRun()}
+                disabled={
+                  isRunning ||
+                  (selectedAction === "quick_prompt" && !quickPrompt.trim())
+                }
+              >
+                {isRunning ? "Running..." : "Run"}
+              </button>
+            </div>
+
+            <div className="modal-section ai-history-section">
+              <div className="section-heading">
+                <h3>History</h3>
+                <p>Outputs are saved per note.</p>
+              </div>
+              <div className="ai-history-list">
+                {isLoadingHistory ? (
+                  <div className="list-empty">Loading AI history...</div>
+                ) : history.length === 0 ? (
+                  <div className="list-empty">No AI outputs yet</div>
+                ) : (
+                  history.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`ai-history-item${
+                        item.id === selectedOutput?.id ? " is-selected" : ""
+                      }`}
+                      onClick={() => setSelectedOutputId(item.id)}
+                    >
+                      <strong>{getOutputTitle(item.action)}</strong>
+                      <span>{item.provider}</span>
+                      <span>{item.model}</span>
+                      <span>{formatDateTime(item.createdAt)}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="ai-output-panel">
+            <div className="ai-output-header">
+              <div>
+                <p className="eyebrow">Result</p>
+                <h3>{selectedOutput ? getOutputTitle(selectedOutput.action) : "No output yet"}</h3>
+              </div>
+              <div className="editor-meta-actions">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => selectedOutput && onApplyToNote(selectedOutput.contentMd)}
+                  disabled={!selectedOutput}
+                >
+                  Apply to note
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => void handleSaveAsNewNote()}
+                  disabled={!selectedOutput || isSavingNewNote}
+                >
+                  {isSavingNewNote ? "Saving..." : "Save as new note"}
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => void handleCopy()}
+                  disabled={!selectedOutput}
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+            {successMessage ? <p className="success-banner">{successMessage}</p> : null}
+
+            <div className="ai-output-card">
+              {selectedOutput ? (
+                <pre className="ai-output-content">{selectedOutput.contentMd}</pre>
+              ) : (
+                <div className="list-empty">
+                  Run an AI action to generate the first result.
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}

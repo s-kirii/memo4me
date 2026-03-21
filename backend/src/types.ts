@@ -77,3 +77,64 @@ export type AiConnectionTestInput = {
   model?: string;
   apiKey?: string;
 };
+
+export type AiActionType =
+  | "summary"
+  | "structure"
+  | "extract_action_items"
+  | "quick_prompt";
+
+export type AiGenerateTextInput = {
+  systemPrompt?: string;
+  userPrompt: string;
+};
+
+export type AiGenerateTextResult = {
+  text: string;
+  provider: AiProviderId;
+  model: string;
+};
+
+export type AiRunNoteInput = {
+  action: AiActionType;
+  prompt?: string;
+};
+
+export type AiOutputItem = {
+  id: string;
+  noteId: string;
+  provider: AiProviderId;
+  action: AiActionType;
+  model: string;
+  contentMd: string;
+  createdAt: string;
+};
+
+export type TaskStatus = "open" | "done";
+
+export type TaskOrigin = "manual" | "ai";
+
+export type TaskItem = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  sourceNoteId: string | null;
+  sourceNoteTitle: string | null;
+  sourceSelectionText: string | null;
+  createdBy: TaskOrigin;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TaskInput = {
+  title: string;
+  status?: TaskStatus;
+  sourceNoteId?: string | null;
+  sourceSelectionText?: string | null;
+  createdBy?: TaskOrigin;
+};
+
+export type TaskUpdateInput = {
+  title?: string;
+  status?: TaskStatus;
+};

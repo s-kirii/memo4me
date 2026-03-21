@@ -1,5 +1,8 @@
 import { AI_PROVIDER_IDS, DEFAULT_AI_PROVIDER, getDefaultAiEndpoint } from "../ai/defaults";
-import { createAiProviderAdapter } from "../ai/provider-adapters";
+import {
+  createAiProviderAdapter,
+  type AiProviderRequestConfig,
+} from "../ai/provider-adapters";
 import { PlatformSecretStore } from "../ai/platform-secret-store";
 import type { AiProviderConfigRecord, AiSettingsRepository } from "../repositories/ai-settings-repository";
 import type {
@@ -123,6 +126,35 @@ export class AiSettingsService {
   async testConnection(input: AiConnectionTestInput) {
     assertProvider(input.provider);
 
+    const adapter = createAiProviderAdapter(input.provider);
+    const resolvedConfig = this.resolveProviderRequestConfig(input);
+    const result = await adapter.testConnection({
+      endpoint: resolvedConfig.endpoint,
+      model: resolvedConfig.model,
+      apiKey: resolvedConfig.apiKey,
+    });
+
+    return {
+      ok: true as const,
+      message: result.message,
+    };
+  }
+
+  getResolvedActiveProviderConfig() {
+    const activeProvider =
+      this.aiSettingsRepository.getActiveProvider() ?? DEFAULT_AI_PROVIDER;
+
+    return this.resolveProviderRequestConfig({
+      provider: activeProvider,
+    });
+  }
+
+  resolveProviderRequestConfig(
+    input: Pick<AiConnectionTestInput, "provider"> &
+      Partial<AiConnectionTestInput>,
+  ): AiProviderRequestConfig & { provider: AiProviderId } {
+    assertProvider(input.provider);
+
     const savedConfig = this.aiSettingsRepository.findProviderConfig(input.provider);
     const endpoint =
       input.endpoint?.trim() ||
@@ -150,16 +182,11 @@ export class AiSettingsService {
       throw new HttpError(400, "VALIDATION_ERROR", "endpoint is required");
     }
 
-    const adapter = createAiProviderAdapter(input.provider);
-    const result = await adapter.testConnection({
+    return {
+      provider: input.provider,
       endpoint,
       model,
       apiKey,
-    });
-
-    return {
-      ok: true as const,
-      message: result.message,
     };
   }
 

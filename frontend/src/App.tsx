@@ -6,7 +6,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { AiAssistantModal } from "./components/AiAssistantModal";
 import { AiSettingsModal } from "./components/AiSettingsModal";
+import { TasksModal } from "./components/TasksModal";
 import { RichTextEditor } from "./components/RichTextEditor";
 import { request } from "./lib/api";
 import "./App.css";
@@ -100,6 +102,11 @@ function App() {
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
+  const [selectedEditorText, setSelectedEditorText] = useState("");
+  const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
+  const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const saveTimerRef = useRef<number | null>(null);
@@ -327,6 +334,20 @@ function App() {
     }
   };
 
+  const handleCreateNoteFromOutput = async (title: string, contentMd: string) => {
+    const created = await request<NoteDetail>("/notes", {
+      method: "POST",
+      body: JSON.stringify({
+        title,
+        contentMd,
+        tags: [],
+      }),
+    });
+
+    await loadNotes({ preferredSelectedId: created.id });
+    await loadTags();
+  };
+
   const addTagByName = (rawTag: string) => {
     const nextTag = rawTag.trim();
     if (!nextTag) {
@@ -501,12 +522,20 @@ function App() {
   }, [selectedTagFilter, tags]);
 
   const showEmptyState = !selectedNoteId || !selectedNote;
+  const hasTaskSelection = selectedEditorText.trim().length > 0;
   const emptyStateTitle =
     notes.length === 0 ? "最初のメモを作成してください" : "メモを選択してください";
   const emptyStateBody =
     notes.length === 0
       ? "左側の New Note から新しいメモを作ると、ここにタイトル入力欄と本文エリアが表示されます。"
       : "左側の一覧からメモを選択すると、ここに内容が表示されます。";
+
+  const openTasksWithSelection = () => {
+    const selectionText = selectedEditorText.trim();
+    setPendingTaskSelectionText(selectionText);
+    setPendingTaskDraftTitle(selectionText);
+    setIsTasksOpen(true);
+  };
 
   return (
     <div className="app-shell">
@@ -516,6 +545,13 @@ function App() {
           <h1>Local-first note workspace</h1>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setIsTasksOpen(true)}
+          >
+            Tasks
+          </button>
           <button
             type="button"
             className="ghost-button"
@@ -647,6 +683,22 @@ function App() {
                   </p>
                 </div>
                 <div className="editor-meta-actions">
+                  {hasTaskSelection ? (
+                    <button
+                      type="button"
+                      className="ghost-button"
+                      onClick={openTasksWithSelection}
+                    >
+                      Add Selection to Tasks
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => setIsAiAssistantOpen(true)}
+                  >
+                    AI
+                  </button>
                   <span className={`save-status is-${saveState}`}>
                     {saveState === "saving" && "Saving..."}
                     {saveState === "saved" && "Saved"}
@@ -758,6 +810,7 @@ function App() {
               <div className="editor-body">
                 <RichTextEditor
                   value={draft.contentMd}
+                  onSelectionChange={setSelectedEditorText}
                   onChange={(nextMarkdown) =>
                     setDraft((currentDraft) => ({
                       ...currentDraft,
@@ -776,6 +829,39 @@ function App() {
       <AiSettingsModal
         isOpen={isAiSettingsOpen}
         onClose={() => setIsAiSettingsOpen(false)}
+        request={request}
+      />
+      <AiAssistantModal
+        isOpen={isAiAssistantOpen}
+        onClose={() => setIsAiAssistantOpen(false)}
+        note={
+          selectedNote
+            ? {
+                id: selectedNote.id,
+                title: draft.title,
+                contentMd: draft.contentMd,
+              }
+            : null
+        }
+        onApplyToNote={(contentMd) => {
+          setDraft((currentDraft) => ({
+            ...currentDraft,
+            contentMd,
+          }));
+          setSaveState("saving");
+          setIsAiAssistantOpen(false);
+        }}
+        onCreateNoteFromOutput={handleCreateNoteFromOutput}
+        request={request}
+      />
+      <TasksModal
+        isOpen={isTasksOpen}
+        currentNoteId={selectedNote?.id ?? null}
+        currentNoteTitle={draft.title}
+        initialDraftTitle={pendingTaskDraftTitle}
+        initialSelectionText={pendingTaskSelectionText}
+        onClose={() => setIsTasksOpen(false)}
+        onOpenNote={(noteId) => setSelectedNoteId(noteId)}
         request={request}
       />
     </div>

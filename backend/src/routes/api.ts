@@ -1,8 +1,17 @@
 import { Router } from "express";
+import { AiExecutionService } from "../services/ai-execution-service";
 import { AiSettingsService } from "../services/ai-settings-service";
+import { TaskService } from "../services/task-service";
 import { HttpError } from "../utils/http-error";
 import { NoteService } from "../services/note-service";
-import type { AiConnectionTestInput, AiSettingsInput, NoteInput } from "../types";
+import type {
+  AiConnectionTestInput,
+  AiRunNoteInput,
+  AiSettingsInput,
+  NoteInput,
+  TaskInput,
+  TaskUpdateInput,
+} from "../types";
 
 function parseNoteInput(body: unknown): NoteInput {
   const payload = body as Partial<NoteInput>;
@@ -40,9 +49,46 @@ function parseAiConnectionTestInput(body: unknown): AiConnectionTestInput {
   };
 }
 
+function parseAiRunNoteInput(body: unknown): AiRunNoteInput {
+  const payload = body as Partial<AiRunNoteInput>;
+
+  return {
+    action: typeof payload.action === "string" ? payload.action : "summary",
+    prompt: typeof payload.prompt === "string" ? payload.prompt : undefined,
+  };
+}
+
+function parseTaskInput(body: unknown): TaskInput {
+  const payload = body as Partial<TaskInput>;
+
+  return {
+    title: typeof payload.title === "string" ? payload.title : "",
+    status: typeof payload.status === "string" ? payload.status : undefined,
+    sourceNoteId:
+      typeof payload.sourceNoteId === "string" ? payload.sourceNoteId : null,
+    sourceSelectionText:
+      typeof payload.sourceSelectionText === "string"
+        ? payload.sourceSelectionText
+        : null,
+    createdBy:
+      typeof payload.createdBy === "string" ? payload.createdBy : undefined,
+  };
+}
+
+function parseTaskUpdateInput(body: unknown): TaskUpdateInput {
+  const payload = body as Partial<TaskUpdateInput>;
+
+  return {
+    title: typeof payload.title === "string" ? payload.title : undefined,
+    status: typeof payload.status === "string" ? payload.status : undefined,
+  };
+}
+
 export function createApiRouter(
   noteService: NoteService,
   aiSettingsService: AiSettingsService,
+  aiExecutionService: AiExecutionService,
+  taskService: TaskService,
 ) {
   const router = Router();
 
@@ -104,6 +150,43 @@ export function createApiRouter(
     } catch (error) {
       next(error);
     }
+  });
+
+  router.get("/notes/:id/ai-outputs", (req, res) => {
+    const items = aiExecutionService.listOutputsForNote(req.params.id);
+    res.json({ items });
+  });
+
+  router.post("/notes/:id/ai/run", async (req, res, next) => {
+    try {
+      const item = await aiExecutionService.runForNote(
+        req.params.id,
+        parseAiRunNoteInput(req.body),
+      );
+      res.status(201).json({ item });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/tasks", (_req, res) => {
+    const items = taskService.listTasks();
+    res.json({ items });
+  });
+
+  router.post("/tasks", (req, res) => {
+    const item = taskService.createTask(parseTaskInput(req.body));
+    res.status(201).json({ item });
+  });
+
+  router.put("/tasks/:id", (req, res) => {
+    const item = taskService.updateTask(req.params.id, parseTaskUpdateInput(req.body));
+    res.json({ item });
+  });
+
+  router.delete("/tasks/:id", (req, res) => {
+    const result = taskService.deleteTask(req.params.id);
+    res.json(result);
   });
 
   router.use((_req, _res, next) => {

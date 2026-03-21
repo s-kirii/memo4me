@@ -84,6 +84,7 @@ MVP で扱う画面状態は以下。
 
 - Header:
   - アプリ名表示
+- `Tasks` ボタン
   - `AI Settings` ボタン
   - `New Note` ボタン
   - 検索ボックス
@@ -96,6 +97,8 @@ MVP で扱う画面状態は以下。
   - タイトル入力欄
   - 更新日時表示
   - 保存状態表示
+  - `AI` ボタン
+  - 選択テキストがある場合の `Add Selection to Tasks` ボタン
   - 削除ボタン
   - タグ編集 UI
   - 本文開始を示す区切り線
@@ -716,6 +719,70 @@ UI:
 - provider 側の 4xx / 5xx は `AI_CONNECTION_FAILED` として包んで返す
 - 現フェーズでは接続テストの土台のみ実装し、要約や抽出処理は次フェーズで扱う
 
+### 9.13 `GET /api/notes/:id/ai-outputs`
+
+目的:
+
+- 対象メモに紐づく AI 出力履歴を取得する
+
+ルール:
+
+- created_at の降順で返す
+- 各履歴は provider / action / model / content を持つ
+
+### 9.14 `POST /api/notes/:id/ai/run`
+
+目的:
+
+- メモ内容を文脈に AI を実行する
+
+サポート action:
+
+- `summary`
+- `structure`
+- `extract_action_items`
+- `quick_prompt`
+
+ルール:
+
+- active provider 設定を利用する
+- 実行成功時は `ai_outputs` に保存する
+- `quick_prompt` は追加の user prompt を要求する
+
+### 9.15 `GET /api/tasks`
+
+目的:
+
+- タスクリスト全件取得
+
+ルール:
+
+- `open` を先、`done` を後ろに並べる
+- 各タスクは source note 情報を含んでよい
+
+### 9.16 `POST /api/tasks`
+
+目的:
+
+- タスク作成
+
+ルール:
+
+- `sourceNoteId` は null を許容する
+- `createdBy` は `manual` / `ai`
+
+### 9.17 `PUT /api/tasks/:id`
+
+目的:
+
+- タスク title / status 更新
+
+### 9.18 `DELETE /api/tasks/:id`
+
+目的:
+
+- タスク削除
+
 ## 10. DB 詳細設計
 
 ### 10.1 テーブル一覧
@@ -725,6 +792,8 @@ UI:
 - `note_tags`
 - `ai_settings`
 - `ai_provider_configs`
+- `ai_outputs`
+- `tasks`
 
 ### 10.2 `notes` テーブル
 
@@ -825,6 +894,42 @@ CREATE TABLE ai_provider_configs (
 - API キー平文は DB に保存しない
 - DB には secret 保存方式と参照情報のみ保存する
 
+AI 出力履歴テーブル:
+
+```sql
+CREATE TABLE ai_outputs (
+  id TEXT PRIMARY KEY,
+  note_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  action TEXT NOT NULL,
+  model TEXT NOT NULL,
+  content_md TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+);
+```
+
+タスクリストテーブル:
+
+```sql
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('open', 'done')),
+  source_note_id TEXT,
+  source_selection_text TEXT,
+  created_by TEXT NOT NULL CHECK (created_by IN ('manual', 'ai')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (source_note_id) REFERENCES notes(id) ON DELETE SET NULL
+);
+```
+
+Phase 13 の現状:
+
+- 選択テキスト自体は task 作成時に `source_selection_text` として保存する
+- 選択範囲の厳密な位置情報はまだ保存しない
+
 ## 11. フロントエンド詳細設計
 
 ### 11.1 ディレクトリ構成
@@ -846,7 +951,9 @@ frontend/
 現状の主な構成:
 
 - `App`
+- `AiAssistantModal`
 - `AiSettingsModal`
+- `TasksModal`
 - `RichTextEditor`
 - `SaveStatus`
 - `EmptyState`
@@ -878,6 +985,8 @@ frontend/
   - タグフィルタ
   - タグ入力欄
   - AI 設定モーダルの開閉状態
+  - AI Assistant モーダルの開閉状態
+  - Tasks モーダルの開閉状態
   - 保存状態
   - エディタ内部 state
 
@@ -943,6 +1052,12 @@ backend/
 - `GET /api/ai/settings`
 - `PUT /api/ai/settings`
 - `POST /api/ai/settings/test`
+- `GET /api/notes/:id/ai-outputs`
+- `POST /api/notes/:id/ai/run`
+- `GET /api/tasks`
+- `POST /api/tasks`
+- `PUT /api/tasks/:id`
+- `DELETE /api/tasks/:id`
 
 ### 12.4 Repository / Service の責務分離
 
@@ -957,6 +1072,10 @@ backend/
   - AI provider 設定保存
   - 秘密情報の Keychain / DPAPI 連携
   - provider 接続テスト
+  - action ごとの prompt 組み立て
+  - AI 実行結果の保存
+  - タスク作成 / 更新 / 削除
+  - source note 整合性確認
 
 ### 12.5 SQLite 接続方針
 
@@ -1196,6 +1315,12 @@ README または配布資料には以下を明記する。
 - AI provider 設定モーダル
 - AI 設定保存 API
 - macOS Keychain / Windows DPAPI を前提にしたキー保存基盤
+- AI Assistant モーダル
+- 要約 / 構造化 / アクション抽出 / quick prompt 実行
+- AI 出力履歴保存
+- タスクリストモーダル
+- tasks CRUD API
+- source note 付きタスク管理
 
 ### 18.2 現在の未完了タスク
 
@@ -1203,8 +1328,8 @@ README または配布資料には以下を明記する。
 - GitHub Releases の実運用確認
 - 配布物ダウンロードからの導入確認
 - 更新版の再配布と差し替え導入確認
-- AI 実行機能本体
-- タスクリスト機能
+- 範囲選択からのタスク追加
+- 範囲選択位置情報の永続化
 
 ## 19. 要確認事項
 

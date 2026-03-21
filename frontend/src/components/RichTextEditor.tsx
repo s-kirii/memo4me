@@ -11,12 +11,14 @@ type RichTextEditorProps = {
   value: string;
   placeholder?: string;
   onChange: (nextMarkdown: string) => void;
+  onSelectionChange?: (selectedText: string) => void;
 };
 
 export function RichTextEditor({
   value,
   placeholder = "Write your note in Markdown...",
   onChange,
+  onSelectionChange,
 }: RichTextEditorProps) {
   const lowlight = createLowlight(common);
   const lastSyncedMarkdownRef = useRef(value);
@@ -42,6 +44,16 @@ export function RichTextEditor({
       attributes: {
         class: "tiptap-editor",
       },
+    },
+    onSelectionUpdate: ({ editor: currentEditor }) => {
+      const selectedText = currentEditor.state.doc
+        .textBetween(
+          currentEditor.state.selection.from,
+          currentEditor.state.selection.to,
+          "\n",
+        )
+        .trim();
+      onSelectionChange?.(selectedText);
     },
     onUpdate: ({ editor: currentEditor }) => {
       const nextMarkdown = htmlToMarkdown(currentEditor.getHTML());
@@ -81,6 +93,16 @@ export function RichTextEditor({
     });
     lastSyncedMarkdownRef.current = value;
   }, [editor, value]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    return () => {
+      onSelectionChange?.("");
+    };
+  }, [editor, onSelectionChange]);
 
   const handleToggleCodeBlock = () => {
     if (!editor) {

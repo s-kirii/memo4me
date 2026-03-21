@@ -60,10 +60,14 @@ At the time this file was written, the following areas are already implemented.
 - AI settings modal and provider configuration API
 - provider adapter foundation for OpenAI-compatible / Azure OpenAI / Gemini
 - macOS Keychain / Windows DPAPI based AI key storage foundation
+- AI assistant modal
+- summarize / structure / action-item extraction / quick prompt execution
+- AI output history persistence
+- task list modal
+- tasks CRUD API with source-note linkage
 
 Important known remaining areas:
 
-- AI execution features such as summarize / structure / task extraction
 - task list feature set
 - Windows real-machine distribution verification
 
@@ -103,14 +107,19 @@ Key files and responsibilities:
 
 - App shell and main UI: [App.tsx](/xxxxx/memo4me/frontend/src/App.tsx)
 - Main frontend styling: [App.css](/xxxxx/memo4me/frontend/src/App.css)
+- AI assistant modal: [AiAssistantModal.tsx](/xxxxx/memo4me/frontend/src/components/AiAssistantModal.tsx)
+- tasks modal: [TasksModal.tsx](/xxxxx/memo4me/frontend/src/components/TasksModal.tsx)
 - AI settings modal: [AiSettingsModal.tsx](/xxxxx/memo4me/frontend/src/components/AiSettingsModal.tsx)
 - Rich editor component: [RichTextEditor.tsx](/xxxxx/memo4me/frontend/src/components/RichTextEditor.tsx)
 - Markdown conversion helpers: [markdown.ts](/xxxxx/memo4me/frontend/src/lib/markdown.ts)
 - API routes: [api.ts](/xxxxx/memo4me/backend/src/routes/api.ts)
 - AI settings service: [ai-settings-service.ts](/xxxxx/memo4me/backend/src/services/ai-settings-service.ts)
+- AI execution service: [ai-execution-service.ts](/xxxxx/memo4me/backend/src/services/ai-execution-service.ts)
 - Domain/service layer: [note-service.ts](/xxxxx/memo4me/backend/src/services/note-service.ts)
 - Note repository: [note-repository.ts](/xxxxx/memo4me/backend/src/repositories/note-repository.ts)
 - AI settings repository: [ai-settings-repository.ts](/xxxxx/memo4me/backend/src/repositories/ai-settings-repository.ts)
+- AI output repository: [ai-output-repository.ts](/xxxxx/memo4me/backend/src/repositories/ai-output-repository.ts)
+- task repository: [task-repository.ts](/xxxxx/memo4me/backend/src/repositories/task-repository.ts)
 - Tag repository: [tag-repository.ts](/xxxxx/memo4me/backend/src/repositories/tag-repository.ts)
 - AI provider adapters: [provider-adapters.ts](/xxxxx/memo4me/backend/src/ai/provider-adapters.ts)
 - AI secret storage abstraction: [platform-secret-store.ts](/xxxxx/memo4me/backend/src/ai/platform-secret-store.ts)

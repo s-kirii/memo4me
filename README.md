@@ -96,6 +96,21 @@ node scripts/start-app.mjs
 
 Chrome が見つからない場合は起動失敗になる。
 
+## AI 機能の現在地
+
+現状は、AI の実行基盤と初期 UI まで入っている。
+
+- Header の `AI Settings` から provider 設定を開ける
+- 右ペイン上部の `AI` から AI Assistant モーダルを開ける
+- Header の `Tasks` からタスクリストモーダルを開ける
+- `Summary` / `Structure` / `Action items` / `Quick prompt` を実行できる
+- 結果はメモ単位で履歴保存される
+
+補足:
+
+- 実行には API キー設定が必要
+- タスクリストは独立モーダルとして追加済み
+
 ## ダブルクリック起動用ランチャー
 
 利用者向けには、Node スクリプトを直接打たずに次のランチャーを使える。

@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { AiAssistantModal } from "./components/AiAssistantModal";
+import { AppearanceModal } from "./components/AppearanceModal";
 import { AiSettingsModal } from "./components/AiSettingsModal";
 import { TasksModal } from "./components/TasksModal";
 import { RichTextEditor } from "./components/RichTextEditor";
@@ -43,6 +44,10 @@ type EditorDraft = {
   contentMd: string;
   tags: string[];
 };
+
+type ThemeId = "soft-editorial" | "neo-workspace";
+
+const THEME_STORAGE_KEY = "memo4me.theme";
 
 function getDisplayTitle(title: string) {
   return title.trim() || "無題";
@@ -104,6 +109,11 @@ function App() {
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isTasksOpen, setIsTasksOpen] = useState(false);
+  const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeId>(() => {
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return savedTheme === "neo-workspace" ? "neo-workspace" : "soft-editorial";
+  });
   const [selectedEditorText, setSelectedEditorText] = useState("");
   const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
   const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
@@ -193,6 +203,10 @@ function App() {
   useEffect(() => {
     void loadTags();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     if (listReloadTimerRef.current !== null) {
@@ -562,12 +576,19 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-theme={theme}>
       <header className="app-header">
         <div>
           <p className="eyebrow">memo4me</p>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setIsAppearanceOpen(true)}
+          >
+            テーマ
+          </button>
           <button
             type="button"
             className="ghost-button"
@@ -863,6 +884,12 @@ function App() {
         </div>
       ) : null}
 
+      <AppearanceModal
+        isOpen={isAppearanceOpen}
+        selectedTheme={theme}
+        onSelectTheme={setTheme}
+        onClose={() => setIsAppearanceOpen(false)}
+      />
       <AiSettingsModal
         isOpen={isAiSettingsOpen}
         onClose={() => setIsAiSettingsOpen(false)}

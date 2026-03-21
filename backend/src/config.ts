@@ -20,5 +20,6 @@ export const config = {
   host: process.env.HOST ?? "127.0.0.1",
   port: Number(process.env.PORT ?? 8787),
   dbPath: process.env.DB_PATH ?? path.join(getDefaultDataDir(), "app.db"),
+  frontendDistPath: process.env.FRONTEND_DIST_PATH ?? "",
   corsOrigins: ["http://localhost:5173", "http://127.0.0.1:5173"],
 };

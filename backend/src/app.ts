@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import cors from "cors";
 import express, { NextFunction, Request, Response } from "express";
 import type { AppDatabase } from "./db/database";
@@ -21,6 +23,25 @@ export function createApp(db: AppDatabase) {
   );
   app.use(express.json());
   app.use("/api", createApiRouter(noteService));
+
+  const staticIndexPath = config.frontendDistPath
+    ? path.join(config.frontendDistPath, "index.html")
+    : "";
+  const hasStaticFrontend =
+    Boolean(config.frontendDistPath) && fs.existsSync(staticIndexPath);
+
+  if (hasStaticFrontend) {
+    app.use(express.static(config.frontendDistPath));
+
+    app.use((req, res, next) => {
+      if (req.method !== "GET" || req.path.startsWith("/api")) {
+        next();
+        return;
+      }
+
+      res.sendFile(staticIndexPath);
+    });
+  }
 
   app.use(
     (error: unknown, _req: Request, res: Response, _next: NextFunction) => {

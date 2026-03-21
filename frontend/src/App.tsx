@@ -40,7 +40,7 @@ type EditorDraft = {
   tags: string[];
 };
 
-const API_BASE = "http://127.0.0.1:8787/api";
+const API_BASE = import.meta.env.DEV ? "http://127.0.0.1:8787/api" : "/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

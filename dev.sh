@@ -36,31 +36,6 @@ require_command() {
   fi
 }
 
-find_chrome_path() {
-  local candidate
-
-  for candidate in \
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-    "${HOME}/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"; do
-    if [[ -x "${candidate}" ]]; then
-      echo "${candidate}"
-      return 0
-    fi
-  done
-
-  if command -v mdfind >/dev/null 2>&1; then
-    while IFS= read -r app_path; do
-      candidate="${app_path}/Contents/MacOS/Google Chrome"
-      if [[ -x "${candidate}" ]]; then
-        echo "${candidate}"
-        return 0
-      fi
-    done < <(mdfind "kMDItemCFBundleIdentifier == 'com.google.Chrome'")
-  fi
-
-  return 1
-}
-
 wait_for_url() {
   local url="$1"
   local label="$2"
@@ -83,6 +58,7 @@ wait_for_url() {
 
 require_command npm
 require_command curl
+require_command node
 
 if [[ ! -d "${ROOT_DIR}/frontend/node_modules" ]]; then
   echo "frontend dependencies are missing. Run 'cd frontend && npm install' first." >&2
@@ -94,9 +70,9 @@ if [[ ! -d "${ROOT_DIR}/backend/node_modules" ]]; then
   exit 1
 fi
 
-CHROME_PATH="$(find_chrome_path)" || {
-  echo "Google Chrome was not found." >&2
-  echo "This development helper requires Chrome to be installed." >&2
+CHROME_PATH="$(node "${ROOT_DIR}/scripts/chrome-launcher.mjs" find)" || {
+  echo "Chrome is required but was not found." >&2
+  echo "This development helper requires Google Chrome to be installed." >&2
   exit 1
 }
 
@@ -118,7 +94,7 @@ FRONTEND_PID=$!
 wait_for_url "http://127.0.0.1:${BACKEND_PORT}/api/health" "Backend"
 wait_for_url "http://127.0.0.1:${FRONTEND_PORT}" "Frontend"
 
-"${CHROME_PATH}" "http://127.0.0.1:${FRONTEND_PORT}" >/dev/null 2>&1 &
+node "${ROOT_DIR}/scripts/chrome-launcher.mjs" open "http://127.0.0.1:${FRONTEND_PORT}" >/dev/null
 
 echo "memo4me development servers are running."
 echo "Frontend: http://127.0.0.1:${FRONTEND_PORT}"

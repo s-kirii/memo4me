@@ -1002,6 +1002,13 @@ MVP では以下のいずれかを採用する。
 - 起動スクリプトで backend を起動し、ブラウザを開く
 - まとめ用ランチャーで backend と静的フロントを起動する
 
+現状実装:
+
+- `node scripts/build-app.mjs` で frontend / backend の本番ビルドを作成する
+- `node scripts/start-app.mjs` で backend の起動、静的フロント配信、Chrome 起動をまとめて行う
+- `node scripts/install-app.mjs` で初回セットアップ確認を行う
+- macOS / Windows には薄いランチャーを置き、本体ロジックは Node スクリプトに寄せる
+
 起動仕様:
 
 1. ローカル API サーバーを起動する
@@ -1015,6 +1022,7 @@ Chrome 実行パス探索ルール:
 - 最初に見つかった実行可能ファイルを採用する
 - 見つけたパスはログ出力してよい
 - フォールバックで既定ブラウザは開かない
+- 現状実装では共有スクリプト `scripts/chrome-launcher.mjs` に探索ロジックを集約する
 
 Windows 探索順:
 
@@ -1048,11 +1056,13 @@ macOS 探索順:
 
 - ソースコード配布
 - 起動用スクリプト配布
+- `install-*` / `start-*` ランチャー配布
 
 README または配布資料には以下を明記する。
 
 - Google Chrome がインストール済みであること
 - Chrome が見つからない場合は起動しないこと
+- 現状は Node.js / npm が必要であること
 
 将来案:
 

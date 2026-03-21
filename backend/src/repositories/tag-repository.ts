@@ -8,8 +8,9 @@ export class TagRepository {
     return this.db
       .prepare(
         `
-        SELECT id, name
+        SELECT DISTINCT tags.id, tags.name
         FROM tags
+        INNER JOIN note_tags ON note_tags.tag_id = tags.id
         ORDER BY name ASC
         `,
       )

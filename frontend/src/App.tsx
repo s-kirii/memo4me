@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { RichTextEditor } from "./components/RichTextEditor";
 import "./App.css";
 
@@ -30,6 +30,7 @@ type TagItem = {
 type EditorDraft = {
   title: string;
   contentMd: string;
+  tags: string[];
 };
 
 const API_BASE = "http://127.0.0.1:8787/api";
@@ -58,10 +59,6 @@ function getDisplayTitle(title: string) {
 }
 
 function formatUpdatedAt(value: string) {
-  if (value === "just now") {
-    return value;
-  }
-
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
@@ -91,33 +88,63 @@ function getExcerptFromMarkdown(markdown: string) {
     .slice(0, 120);
 }
 
+function normalizeTag(value: string) {
+  return value.trim().toLowerCase();
+}
+
 function App() {
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<NoteDetail | null>(null);
-  const [draft, setDraft] = useState<EditorDraft>({ title: "", contentMd: "" });
+  const [draft, setDraft] = useState<EditorDraft>({
+    title: "",
+    contentMd: "",
+    tags: [],
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [sort, setSort] = useState("updated_desc");
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [tags, setTags] = useState<TagItem[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const saveTimerRef = useRef<number | null>(null);
+  const listReloadTimerRef = useRef<number | null>(null);
   const skipNextAutosaveRef = useRef(true);
 
-  const loadNotes = async () => {
+  const loadNotes = async (options?: { preferredSelectedId?: string | null }) => {
     setIsListLoading(true);
 
     try {
-      const response = await request<{ items: NoteListItem[] }>("/notes");
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) {
+        params.set("q", searchQuery.trim());
+      }
+      if (sort) {
+        params.set("sort", sort);
+      }
+      if (selectedTagFilter) {
+        params.set("tag", selectedTagFilter);
+      }
+
+      const queryString = params.toString();
+      const response = await request<{ items: NoteListItem[] }>(
+        `/notes${queryString ? `?${queryString}` : ""}`,
+      );
+
       setNotes(response.items);
       setErrorMessage(null);
 
       setSelectedNoteId((currentId) => {
-        if (currentId && response.items.some((note) => note.id === currentId)) {
-          return currentId;
+        const preferredSelectedId = options?.preferredSelectedId ?? currentId;
+        if (
+          preferredSelectedId &&
+          response.items.some((note) => note.id === preferredSelectedId)
+        ) {
+          return preferredSelectedId;
         }
 
         return response.items[0]?.id ?? null;
@@ -147,7 +174,9 @@ function App() {
       setDraft({
         title: note.title,
         contentMd: note.contentMd,
+        tags: note.tags,
       });
+      setTagInput("");
       skipNextAutosaveRef.current = true;
       setSaveState("idle");
       setErrorMessage(null);
@@ -160,14 +189,29 @@ function App() {
   };
 
   useEffect(() => {
-    void loadNotes();
     void loadTags();
   }, []);
 
   useEffect(() => {
+    if (listReloadTimerRef.current !== null) {
+      window.clearTimeout(listReloadTimerRef.current);
+    }
+
+    listReloadTimerRef.current = window.setTimeout(() => {
+      void loadNotes();
+    }, 300);
+
+    return () => {
+      if (listReloadTimerRef.current !== null) {
+        window.clearTimeout(listReloadTimerRef.current);
+      }
+    };
+  }, [searchQuery, sort, selectedTagFilter]);
+
+  useEffect(() => {
     if (!selectedNoteId) {
       setSelectedNote(null);
-      setDraft({ title: "", contentMd: "" });
+      setDraft({ title: "", contentMd: "", tags: [] });
       setSaveState("idle");
       return;
     }
@@ -181,7 +225,9 @@ function App() {
     }
 
     const isDirty =
-      draft.title !== selectedNote.title || draft.contentMd !== selectedNote.contentMd;
+      draft.title !== selectedNote.title ||
+      draft.contentMd !== selectedNote.contentMd ||
+      JSON.stringify(draft.tags) !== JSON.stringify(selectedNote.tags);
 
     if (!isDirty) {
       return;
@@ -205,7 +251,7 @@ function App() {
           body: JSON.stringify({
             title: draft.title,
             contentMd: draft.contentMd,
-            tags: selectedNote.tags,
+            tags: draft.tags,
           }),
         });
 
@@ -213,6 +259,7 @@ function App() {
         setDraft({
           title: updated.title,
           contentMd: updated.contentMd,
+          tags: updated.tags,
         });
         setNotes((currentNotes) =>
           currentNotes.map((note) =>
@@ -227,6 +274,7 @@ function App() {
               : note,
           ),
         );
+        await loadTags();
         setSaveState("saved");
         setErrorMessage(null);
       } catch (error) {
@@ -242,32 +290,6 @@ function App() {
     };
   }, [draft, selectedNote]);
 
-  const filteredNotes = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    const nextNotes = [...notes];
-
-    if (sort === "updated_asc") {
-      nextNotes.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
-    } else if (sort === "title_asc") {
-      nextNotes.sort((a, b) =>
-        getDisplayTitle(a.title).localeCompare(getDisplayTitle(b.title)),
-      );
-    } else {
-      nextNotes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    }
-
-    if (!normalizedQuery) {
-      return nextNotes;
-    }
-
-    return nextNotes.filter((note) => {
-      const haystacks = [note.title, note.excerpt, note.tags.join(" ")].map((value) =>
-        value.toLowerCase(),
-      );
-      return haystacks.some((value) => value.includes(normalizedQuery));
-    });
-  }, [notes, searchQuery, sort]);
-
   const handleCreateNote = async () => {
     try {
       const created = await request<NoteDetail>("/notes", {
@@ -279,18 +301,7 @@ function App() {
         }),
       });
 
-      setNotes((currentNotes) => [
-        {
-          id: created.id,
-          title: created.title,
-          excerpt: "",
-          tags: created.tags,
-          createdAt: created.createdAt,
-          updatedAt: created.updatedAt,
-        },
-        ...currentNotes,
-      ]);
-      setSelectedNoteId(created.id);
+      await loadNotes({ preferredSelectedId: created.id });
       await loadTags();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "failed to create note");
@@ -312,22 +323,62 @@ function App() {
         method: "DELETE",
       });
 
-      setNotes((currentNotes) => {
-        const remainingNotes = currentNotes.filter((note) => note.id !== selectedNote.id);
-        setSelectedNoteId(remainingNotes[0]?.id ?? null);
-        return remainingNotes;
-      });
-      setSelectedNote(null);
-      setDraft({ title: "", contentMd: "" });
-      setSaveState("idle");
+      await loadNotes({ preferredSelectedId: null });
       await loadTags();
+      setSelectedNote(null);
+      setDraft({ title: "", contentMd: "", tags: [] });
+      setTagInput("");
+      setSaveState("idle");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "failed to delete note");
     }
   };
 
+  const handleAddTag = () => {
+    const nextTag = tagInput.trim();
+    if (!nextTag) {
+      return;
+    }
+
+    setDraft((currentDraft) => {
+      const normalizedExistingTags = currentDraft.tags.map((tag) => normalizeTag(tag));
+      if (normalizedExistingTags.includes(normalizeTag(nextTag))) {
+        return currentDraft;
+      }
+
+      return {
+        ...currentDraft,
+        tags: [...currentDraft.tags, nextTag],
+      };
+    });
+    setTagInput("");
+  };
+
+  const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      handleAddTag();
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      tags: currentDraft.tags.filter((tag) => tag !== tagToRemove),
+    }));
+  };
+
+  const availableFilterTags = useMemo(() => {
+    const tagNames = tags.map((tag) => tag.name);
+    if (selectedTagFilter && !tagNames.includes(selectedTagFilter)) {
+      return [selectedTagFilter, ...tagNames];
+    }
+    return tagNames;
+  }, [selectedTagFilter, tags]);
+
   const showEmptyState = !selectedNoteId || !selectedNote;
-  const emptyStateTitle = notes.length === 0 ? "最初のメモを作成してください" : "メモを選択してください";
+  const emptyStateTitle =
+    notes.length === 0 ? "最初のメモを作成してください" : "メモを選択してください";
   const emptyStateBody =
     notes.length === 0
       ? "左側の New Note から新しいメモを作ると、ここにタイトル入力欄と本文エリアが表示されます。"
@@ -378,12 +429,27 @@ function App() {
               <div className="field">
                 <span>Tags</span>
                 <div className="tag-list">
-                  <button className="tag-chip is-active" type="button">
+                  <button
+                    className={`tag-chip${selectedTagFilter === null ? " is-active" : ""}`}
+                    type="button"
+                    onClick={() => setSelectedTagFilter(null)}
+                  >
                     All
                   </button>
-                  {tags.map((tag) => (
-                    <button key={tag.id} className="tag-chip" type="button">
-                      {tag.name}
+                  {availableFilterTags.map((tag) => (
+                    <button
+                      key={tag}
+                      className={`tag-chip${
+                        selectedTagFilter === tag ? " is-active" : ""
+                      }`}
+                      type="button"
+                      onClick={() =>
+                        setSelectedTagFilter((currentTag) =>
+                          currentTag === tag ? null : tag,
+                        )
+                      }
+                    >
+                      {tag}
                     </button>
                   ))}
                 </div>
@@ -394,16 +460,16 @@ function App() {
           <section className="sidebar-section note-list-section">
             <div className="sidebar-section-header">
               <h2>Notes</h2>
-              <span>{filteredNotes.length}</span>
+              <span>{notes.length}</span>
             </div>
 
             <div className="note-list">
               {isListLoading ? (
                 <div className="list-empty">Loading notes...</div>
-              ) : filteredNotes.length === 0 ? (
+              ) : notes.length === 0 ? (
                 <div className="list-empty">一致するメモはありません</div>
               ) : (
-                filteredNotes.map((note) => (
+                notes.map((note) => (
                   <button
                     key={note.id}
                     type="button"
@@ -481,20 +547,46 @@ function App() {
                 />
               </label>
 
-              <div className="note-tags">
-                {selectedNote.tags.length === 0 ? (
+              <div className="note-tags note-tags-editor">
+                {draft.tags.length === 0 ? (
                   <span className="tag-pill is-muted">untagged</span>
                 ) : (
-                  selectedNote.tags.map((tag) => (
-                    <span key={tag} className="tag-pill">
-                      {tag}
+                  draft.tags.map((tag) => (
+                    <span key={tag} className="tag-pill tag-pill-editable">
+                      <span>{tag}</span>
+                      <button
+                        type="button"
+                        className="tag-remove-button"
+                        onClick={() => handleRemoveTag(tag)}
+                        aria-label={`Remove ${tag}`}
+                      >
+                        x
+                      </button>
                     </span>
                   ))
                 )}
+
+                <label className="tag-input">
+                  <span className="visually-hidden">Add tag</span>
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(event) => setTagInput(event.target.value)}
+                    onKeyDown={handleTagInputKeyDown}
+                    placeholder="Add tag"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="ghost-button tag-add-button"
+                  onClick={handleAddTag}
+                >
+                  Add Tag
+                </button>
               </div>
 
               <div className="editor-divider">
-                <span>memorandum</span>
+                <span>Body</span>
               </div>
 
               <div className="editor-body">

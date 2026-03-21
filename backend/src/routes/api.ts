@@ -65,6 +65,7 @@ function parseTaskInput(body: unknown): TaskInput {
   return {
     title: typeof payload.title === "string" ? payload.title : "",
     status: typeof payload.status === "string" ? payload.status : undefined,
+    tags: Array.isArray(payload.tags) ? payload.tags : undefined,
     sourceNoteId:
       typeof payload.sourceNoteId === "string" ? payload.sourceNoteId : null,
     sourceSelectionText:
@@ -82,6 +83,7 @@ function parseTaskUpdateInput(body: unknown): TaskUpdateInput {
   return {
     title: typeof payload.title === "string" ? payload.title : undefined,
     status: typeof payload.status === "string" ? payload.status : undefined,
+    tags: Array.isArray(payload.tags) ? payload.tags : undefined,
   };
 }
 

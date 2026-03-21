@@ -9,6 +9,7 @@ type TaskItem = {
   id: string;
   title: string;
   status: "open" | "done";
+  tags: string[];
   sourceNoteId: string | null;
   sourceNoteTitle: string | null;
   sourceSelectionText: string | null;

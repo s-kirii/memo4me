@@ -1,3 +1,4 @@
+import { sanitizeTags } from "../utils/tags";
 import { NoteRepository } from "../repositories/note-repository";
 import { TaskRepository } from "../repositories/task-repository";
 import type { TaskInput, TaskItem, TaskUpdateInput } from "../types";
@@ -33,10 +34,14 @@ export class TaskService {
     }
 
     const now = new Date().toISOString();
+    const sourceNoteTags =
+      input.sourceNoteId ? this.noteRepository.getTagNamesForNote(input.sourceNoteId) : [];
+    const tags = sanitizeTags(input.tags ?? sourceNoteTags);
     this.taskRepository.create({
       id: crypto.randomUUID(),
       title: input.title.trim(),
       status: input.status ?? "open",
+      tags,
       sourceNoteId: input.sourceNoteId ?? null,
       sourceSelectionText: input.sourceSelectionText?.trim() || null,
       createdBy: input.createdBy ?? "manual",
@@ -71,6 +76,7 @@ export class TaskService {
 
     const nextTitle = input.title !== undefined ? input.title.trim() : existing.title;
     const nextStatus = input.status ?? existing.status;
+    const nextTags = sanitizeTags(input.tags ?? existing.tags);
 
     if (!nextTitle) {
       throw new HttpError(400, "VALIDATION_ERROR", "task title is required");
@@ -86,6 +92,7 @@ export class TaskService {
       id,
       title: nextTitle,
       status: nextStatus,
+      tags: nextTags,
       updatedAt: new Date().toISOString(),
     });
 
@@ -137,6 +144,26 @@ export class TaskService {
 
     if (input.createdBy !== undefined) {
       assertCreatedBy(input.createdBy);
+    }
+
+    if (input.tags !== undefined) {
+      if (!Array.isArray(input.tags)) {
+        throw new HttpError(400, "VALIDATION_ERROR", "tags must be an array");
+      }
+
+      if (input.tags.length > 10) {
+        throw new HttpError(400, "VALIDATION_ERROR", "too many tags");
+      }
+
+      for (const tag of input.tags) {
+        if (typeof tag !== "string") {
+          throw new HttpError(400, "VALIDATION_ERROR", "tag must be a string");
+        }
+
+        if (tag.trim().length > 30) {
+          throw new HttpError(400, "VALIDATION_ERROR", "tag is too long");
+        }
+      }
     }
   }
 }

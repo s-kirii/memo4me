@@ -895,6 +895,7 @@ function App() {
         isOpen={isTasksOpen}
         currentNoteId={selectedNote?.id ?? null}
         currentNoteTitle={draft.title}
+        currentNoteTags={draft.tags}
         initialDraftTitle={pendingTaskDraftTitle}
         initialSelectionText={pendingTaskSelectionText}
         onClose={() => setIsTasksOpen(false)}

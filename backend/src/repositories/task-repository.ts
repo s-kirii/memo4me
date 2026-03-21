@@ -43,6 +43,7 @@ export class TaskRepository {
       id: row.id,
       title: row.title,
       status: row.status,
+      tags: this.getTagNamesForTask(row.id),
       sourceNoteId: row.source_note_id,
       sourceNoteTitle: row.source_note_title,
       sourceSelectionText: row.source_selection_text,
@@ -82,6 +83,7 @@ export class TaskRepository {
       id: row.id,
       title: row.title,
       status: row.status,
+      tags: this.getTagNamesForTask(row.id),
       sourceNoteId: row.source_note_id,
       sourceNoteTitle: row.source_note_title,
       sourceSelectionText: row.source_selection_text,
@@ -97,6 +99,7 @@ export class TaskRepository {
     status: TaskStatus;
     sourceNoteId: string | null;
     sourceSelectionText: string | null;
+    tags: { name: string; normalizedName: string }[];
     createdBy: "manual" | "ai";
     createdAt: string;
     updatedAt: string;
@@ -127,12 +130,15 @@ export class TaskRepository {
         `,
       )
       .run(input);
+
+    this.upsertTagsForTask(input.id, input.tags);
   }
 
   update(input: {
     id: string;
     title: string;
     status: TaskStatus;
+    tags: { name: string; normalizedName: string }[];
     updatedAt: string;
   }) {
     this.db
@@ -146,9 +152,69 @@ export class TaskRepository {
         `,
       )
       .run(input);
+
+    this.upsertTagsForTask(input.id, input.tags);
   }
 
   delete(id: string) {
     this.db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
+  }
+
+  upsertTagsForTask(taskId: string, tags: { name: string; normalizedName: string }[]) {
+    const insertTag = this.db.prepare(`
+      INSERT INTO tags (id, name, normalized_name, created_at)
+      VALUES (@id, @name, @normalizedName, @createdAt)
+      ON CONFLICT(normalized_name) DO UPDATE SET name = excluded.name
+    `);
+    const getTagByNormalizedName = this.db.prepare(`
+      SELECT id, name, normalized_name
+      FROM tags
+      WHERE normalized_name = ?
+      LIMIT 1
+    `);
+    const deleteTaskTags = this.db.prepare("DELETE FROM task_tags WHERE task_id = ?");
+    const insertTaskTag = this.db.prepare(`
+      INSERT OR IGNORE INTO task_tags (task_id, tag_id)
+      VALUES (?, ?)
+    `);
+
+    const transaction = this.db.transaction(() => {
+      deleteTaskTags.run(taskId);
+
+      for (const tag of tags) {
+        insertTag.run({
+          id: crypto.randomUUID(),
+          name: tag.name,
+          normalizedName: tag.normalizedName,
+          createdAt: new Date().toISOString(),
+        });
+
+        const persistedTag = getTagByNormalizedName.get(tag.normalizedName) as
+          | { id: string }
+          | undefined;
+
+        if (persistedTag) {
+          insertTaskTag.run(taskId, persistedTag.id);
+        }
+      }
+    });
+
+    transaction();
+  }
+
+  private getTagNamesForTask(taskId: string) {
+    return (
+      this.db
+        .prepare(
+          `
+          SELECT tags.name
+          FROM task_tags
+          INNER JOIN tags ON tags.id = task_tags.tag_id
+          WHERE task_tags.task_id = ?
+          ORDER BY tags.name ASC
+          `,
+        )
+        .all(taskId) as Array<{ name: string }>
+    ).map((row) => row.name);
   }
 }

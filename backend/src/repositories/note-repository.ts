@@ -149,6 +149,22 @@ export class NoteRepository {
     return Boolean(row);
   }
 
+  getTagNamesForNote(noteId: string) {
+    return (
+      this.db
+        .prepare(
+          `
+          SELECT tags.name
+          FROM note_tags
+          INNER JOIN tags ON tags.id = note_tags.tag_id
+          WHERE note_tags.note_id = ?
+          ORDER BY tags.name ASC
+          `,
+        )
+        .all(noteId) as Array<{ name: string }>
+    ).map((row) => row.name);
+  }
+
   upsertTagsForNote(noteId: string, tags: { name: string; normalizedName: string }[]) {
     const insertTag = this.db.prepare(`
       INSERT INTO tags (id, name, normalized_name, created_at)
@@ -189,22 +205,6 @@ export class NoteRepository {
     });
 
     transaction();
-  }
-
-  private getTagNamesForNote(noteId: string) {
-    return (
-      this.db
-        .prepare(
-          `
-          SELECT tags.name
-          FROM note_tags
-          INNER JOIN tags ON tags.id = note_tags.tag_id
-          WHERE note_tags.note_id = ?
-          ORDER BY tags.name ASC
-          `,
-        )
-        .all(noteId) as Array<{ name: string }>
-    ).map((row) => row.name);
   }
 
   private getSortClause(sort?: string) {

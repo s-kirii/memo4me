@@ -773,6 +773,7 @@ UI:
 
 - `open` を先、`done` を後ろに並べる
 - 各タスクは source note 情報を含んでよい
+- 各タスクは tags 配列を含む
 
 ### 9.17 `POST /api/tasks`
 
@@ -784,6 +785,8 @@ UI:
 
 - `sourceNoteId` は null を許容する
 - `createdBy` は `manual` / `ai`
+- `tags` は任意指定できる
+- `sourceNoteId` があり `tags` 未指定なら、元メモのタグを初期値として引き継ぐ
 
 ### 9.18 `POST /api/tasks/bulk`
 
@@ -804,6 +807,10 @@ UI:
 
 - タスク title / status 更新
 
+ルール:
+
+- `tags` の全置換更新を許容する
+
 ### 9.20 `DELETE /api/tasks/:id`
 
 目的:
@@ -821,6 +828,7 @@ UI:
 - `ai_provider_configs`
 - `ai_outputs`
 - `tasks`
+- `task_tags`
 
 ### 10.2 `notes` テーブル
 
@@ -950,12 +958,26 @@ CREATE TABLE tasks (
   updated_at TEXT NOT NULL,
   FOREIGN KEY (source_note_id) REFERENCES notes(id) ON DELETE SET NULL
 );
+
+CREATE TABLE task_tags (
+  task_id TEXT NOT NULL,
+  tag_id TEXT NOT NULL,
+  PRIMARY KEY (task_id, tag_id),
+  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
 ```
 
 Phase 13 の現状:
 
 - 選択テキスト自体は task 作成時に `source_selection_text` として保存する
 - 選択範囲の厳密な位置情報はまだ保存しない
+- 元メモから手動追加した task には、元メモと同じ tags を初期設定する
+
+Phase 14 の現状:
+
+- AI 抽出で保存した task には、元メモと同じ tags を初期設定する
+- task の tags は notes と同じ `tags` テーブルを共有する
 
 ## 11. フロントエンド詳細設計
 

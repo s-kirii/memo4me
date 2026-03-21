@@ -7,6 +7,7 @@ type TaskItem = {
   id: string;
   title: string;
   status: TaskStatus;
+  tags: string[];
   sourceNoteId: string | null;
   sourceNoteTitle: string | null;
   sourceSelectionText: string | null;
@@ -19,6 +20,7 @@ type TasksModalProps = {
   isOpen: boolean;
   currentNoteId: string | null;
   currentNoteTitle: string;
+  currentNoteTags: string[];
   initialDraftTitle?: string;
   initialSelectionText?: string;
   onClose: () => void;
@@ -44,6 +46,7 @@ export function TasksModal({
   isOpen,
   currentNoteId,
   currentNoteTitle,
+  currentNoteTags,
   initialDraftTitle = "",
   initialSelectionText = "",
   onClose,
@@ -51,7 +54,11 @@ export function TasksModal({
   request,
 }: TasksModalProps) {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskTags, setNewTaskTags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState("");
+  const [taskTagInputs, setTaskTagInputs] = useState<Record<string, string>>({});
   const [attachCurrentNote, setAttachCurrentNote] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -70,11 +77,15 @@ export function TasksModal({
 
       try {
         const response = await request<{ items: TaskItem[] }>("/tasks");
+        const tagResponse = await request<{ items: Array<{ id: string; name: string }> }>(
+          "/tags",
+        );
         if (cancelled) {
           return;
         }
 
         setTasks(response.items);
+        setAvailableTags(tagResponse.items.map((item) => item.name));
       } catch (error) {
         if (cancelled) {
           return;
@@ -112,7 +123,10 @@ export function TasksModal({
     }
 
     setNewTaskTitle(initialDraftTitle);
-  }, [initialDraftTitle, isOpen]);
+    setNewTaskTags(currentNoteId ? currentNoteTags : []);
+    setNewTagInput("");
+    setTaskTagInputs({});
+  }, [currentNoteId, currentNoteTags, initialDraftTitle, isOpen]);
 
   const openTasks = useMemo(
     () => tasks.filter((task) => task.status === "open"),
@@ -127,6 +141,39 @@ export function TasksModal({
     return null;
   }
 
+  const normalizeTag = (value: string) => value.trim().toLowerCase();
+
+  const addTag = (currentTags: string[], rawTag: string) => {
+    const nextTag = rawTag.trim();
+    if (!nextTag) {
+      return currentTags;
+    }
+
+    if (currentTags.some((tag) => normalizeTag(tag) === normalizeTag(nextTag))) {
+      return currentTags;
+    }
+
+    return [...currentTags, nextTag];
+  };
+
+  const removeTag = (currentTags: string[], tagToRemove: string) =>
+    currentTags.filter((tag) => tag !== tagToRemove);
+
+  const getSuggestions = (currentTags: string[], input: string) => {
+    const normalizedInput = normalizeTag(input);
+    if (!normalizedInput) {
+      return [];
+    }
+
+    return availableTags
+      .filter(
+        (tag) =>
+          !currentTags.some((currentTag) => normalizeTag(currentTag) === normalizeTag(tag)),
+      )
+      .filter((tag) => normalizeTag(tag).includes(normalizedInput))
+      .slice(0, 5);
+  };
+
   const handleCreateTask = async () => {
     setIsCreating(true);
     setErrorMessage(null);
@@ -137,6 +184,7 @@ export function TasksModal({
         body: JSON.stringify({
           title: newTaskTitle,
           status: "open",
+          tags: newTaskTags,
           sourceNoteId: attachCurrentNote ? currentNoteId : null,
           sourceSelectionText: initialSelectionText || null,
           createdBy: "manual",
@@ -145,6 +193,8 @@ export function TasksModal({
 
       setTasks((currentTasks) => [response.item, ...currentTasks]);
       setNewTaskTitle("");
+      setNewTaskTags(attachCurrentNote && currentNoteId ? currentNoteTags : []);
+      setNewTagInput("");
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "タスクの作成に失敗しました",
@@ -159,6 +209,7 @@ export function TasksModal({
     patch: {
       title?: string;
       status?: TaskStatus;
+      tags?: string[];
     },
   ) => {
     const response = await request<{ item: TaskItem }>(`/tasks/${taskId}`, {
@@ -168,6 +219,88 @@ export function TasksModal({
 
     setTasks((currentTasks) =>
       currentTasks.map((task) => (task.id === taskId ? response.item : task)),
+    );
+  };
+
+  const handleUpdateTaskTags = async (taskId: string, tags: string[]) => {
+    try {
+      await updateTask(taskId, { tags });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "タスクタグの更新に失敗しました",
+      );
+    }
+  };
+
+  const renderTagEditor = (
+    tags: string[],
+    inputValue: string,
+    onInputChange: (value: string) => void,
+    onAddTag: (tag: string) => void,
+    onRemoveTag: (tag: string) => void,
+  ) => {
+    const suggestions = getSuggestions(tags, inputValue);
+
+    return (
+      <div className="task-tags-editor">
+        <div className="note-tags">
+          {tags.length === 0 ? (
+            <span className="tag-pill is-muted">タグなし</span>
+          ) : (
+            tags.map((tag) => (
+              <span key={tag} className="tag-pill tag-pill-editable">
+                <span>{tag}</span>
+                <button
+                  type="button"
+                  className="tag-remove-button"
+                  onClick={() => onRemoveTag(tag)}
+                  aria-label={`タグ「${tag}」を削除`}
+                >
+                  x
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+
+        <div className="task-tag-input-row">
+          <input
+            className="task-tag-input"
+            type="text"
+            value={inputValue}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onAddTag(inputValue);
+              }
+            }}
+            placeholder="タグを追加"
+          />
+          <button
+            type="button"
+            className="ghost-button tag-add-button"
+            onClick={() => onAddTag(inputValue)}
+          >
+            タグを追加
+          </button>
+        </div>
+
+        {suggestions.length > 0 ? (
+          <div className="tag-suggestion-list is-inline" role="listbox">
+            {suggestions.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="tag-suggestion-item"
+                onClick={() => onAddTag(tag)}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     );
   };
 
@@ -251,6 +384,28 @@ export function TasksModal({
             {task.sourceSelectionText ? (
               <p className="task-selection-preview">{task.sourceSelectionText}</p>
             ) : null}
+
+            {renderTagEditor(
+              task.tags,
+              taskTagInputs[task.id] ?? "",
+              (value) =>
+                setTaskTagInputs((current) => ({
+                  ...current,
+                  [task.id]: value,
+                })),
+              (rawTag) => {
+                const nextTags = addTag(task.tags, rawTag);
+                if (nextTags === task.tags) {
+                  return;
+                }
+
+                setTaskTagInputs((current) => ({ ...current, [task.id]: "" }));
+                void handleUpdateTaskTags(task.id, nextTags);
+              },
+              (tagToRemove) => {
+                void handleUpdateTaskTags(task.id, removeTag(task.tags, tagToRemove));
+              },
+            )}
           </div>
         ))}
       </div>
@@ -312,6 +467,19 @@ export function TasksModal({
           {initialSelectionText ? (
             <p className="task-selection-preview is-draft">{initialSelectionText}</p>
           ) : null}
+
+          {renderTagEditor(
+            newTaskTags,
+            newTagInput,
+            setNewTagInput,
+            (rawTag) => {
+              setNewTaskTags((currentTags) => addTag(currentTags, rawTag));
+              setNewTagInput("");
+            },
+            (tagToRemove) => {
+              setNewTaskTags((currentTags) => removeTag(currentTags, tagToRemove));
+            },
+          )}
         </div>
 
         {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}

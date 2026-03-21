@@ -128,6 +128,7 @@ export type TaskItem = {
   id: string;
   title: string;
   status: TaskStatus;
+  tags: string[];
   sourceNoteId: string | null;
   sourceNoteTitle: string | null;
   sourceSelectionText: string | null;
@@ -139,6 +140,7 @@ export type TaskItem = {
 export type TaskInput = {
   title: string;
   status?: TaskStatus;
+  tags?: string[];
   sourceNoteId?: string | null;
   sourceSelectionText?: string | null;
   createdBy?: TaskOrigin;
@@ -151,4 +153,5 @@ export type TaskBulkCreateInput = {
 export type TaskUpdateInput = {
   title?: string;
   status?: TaskStatus;
+  tags?: string[];
 };

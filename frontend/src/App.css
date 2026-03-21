@@ -623,6 +623,29 @@
   background: rgba(255, 255, 255, 0.52);
 }
 
+.task-tags-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-tag-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-tag-input {
+  width: 100%;
+  min-height: 34px;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid rgba(62, 41, 25, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 250, 243, 0.9);
+  color: #241b12;
+}
+
 .ai-task-candidates-modal {
   width: min(720px, 100%);
   padding: 22px;
@@ -795,6 +818,12 @@
   border-radius: 16px;
   background: rgba(255, 250, 243, 0.98);
   box-shadow: 0 14px 36px rgba(75, 47, 27, 0.12);
+}
+
+.tag-suggestion-list.is-inline {
+  position: static;
+  min-width: 0;
+  box-shadow: none;
 }
 
 .tag-suggestion-item {

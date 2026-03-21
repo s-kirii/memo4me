@@ -10,7 +10,12 @@ export class TagRepository {
         `
         SELECT DISTINCT tags.id, tags.name
         FROM tags
-        INNER JOIN note_tags ON note_tags.tag_id = tags.id
+        WHERE EXISTS (
+          SELECT 1 FROM note_tags WHERE note_tags.tag_id = tags.id
+        )
+        OR EXISTS (
+          SELECT 1 FROM task_tags WHERE task_tags.tag_id = tags.id
+        )
         ORDER BY name ASC
         `,
       )

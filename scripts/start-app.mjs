@@ -93,9 +93,14 @@ async function main() {
   });
 
   backendProcess.on("exit", (code) => {
-    if (code !== 0) {
+    const exitCode = code ?? 0;
+
+    if (exitCode !== 0) {
       console.error(`backend exited with code ${code}`);
     }
+
+    backendProcess = null;
+    process.exit(exitCode);
   });
 
   await waitForUrl(`${appUrl}/api/health`, "Backend");

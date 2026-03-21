@@ -108,6 +108,8 @@ function App() {
   const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
   const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [exitMessage, setExitMessage] = useState<string | null>(null);
+  const [isExiting, setIsExiting] = useState(false);
 
   const saveTimerRef = useRef<number | null>(null);
   const listReloadTimerRef = useRef<number | null>(null);
@@ -348,6 +350,28 @@ function App() {
     await loadTags();
   };
 
+  const handleExitApp = async () => {
+    setIsExiting(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await request<{ ok: true; message: string }>("/app/shutdown", {
+        method: "POST",
+      });
+
+      setExitMessage(response.message);
+
+      window.setTimeout(() => {
+        window.close();
+      }, 250);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "failed to shut down app",
+      );
+      setIsExiting(false);
+    }
+  };
+
   const addTagByName = (rawTag: string) => {
     const nextTag = rawTag.trim();
     if (!nextTag) {
@@ -545,6 +569,14 @@ function App() {
           <h1>Local-first note workspace</h1>
         </div>
         <div className="header-actions">
+          <button
+            type="button"
+            className="ghost-button danger-button"
+            onClick={() => void handleExitApp()}
+            disabled={isExiting}
+          >
+            {isExiting ? "Exiting..." : "Exit"}
+          </button>
           <button
             type="button"
             className="ghost-button"
@@ -825,6 +857,12 @@ function App() {
           )}
         </section>
       </main>
+
+      {exitMessage ? (
+        <div className="exit-banner" role="status">
+          <strong>App stopped.</strong> {exitMessage}
+        </div>
+      ) : null}
 
       <AiSettingsModal
         isOpen={isAiSettingsOpen}

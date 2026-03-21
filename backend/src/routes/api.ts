@@ -100,6 +100,7 @@ export function createApiRouter(
   aiSettingsService: AiSettingsService,
   aiExecutionService: AiExecutionService,
   taskService: TaskService,
+  onShutdown?: () => void,
 ) {
   const router = Router();
 
@@ -214,6 +215,19 @@ export function createApiRouter(
   router.delete("/tasks/:id", (req, res) => {
     const result = taskService.deleteTask(req.params.id);
     res.json(result);
+  });
+
+  router.post("/app/shutdown", (_req, res) => {
+    res.json({
+      ok: true as const,
+      message: "memo4me is shutting down. Please close this tab.",
+    });
+
+    if (onShutdown) {
+      setTimeout(() => {
+        onShutdown();
+      }, 150);
+    }
   });
 
   router.use((_req, _res, next) => {

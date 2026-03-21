@@ -1088,6 +1088,7 @@ backend/
 - `POST /api/tasks/bulk`
 - `PUT /api/tasks/:id`
 - `DELETE /api/tasks/:id`
+- `POST /api/app/shutdown`
 
 ### 12.4 Repository / Service の責務分離
 
@@ -1354,6 +1355,7 @@ README または配布資料には以下を明記する。
 - タスクリストモーダル
 - tasks CRUD API
 - source note 付きタスク管理
+- Header の `Exit` ボタンと app shutdown API
 
 ### 18.2 現在の未完了タスク
 

@@ -103,6 +103,7 @@ Chrome が見つからない場合は起動失敗になる。
 - Header の `AI Settings` から provider 設定を開ける
 - 右ペイン上部の `AI` から AI Assistant モーダルを開ける
 - Header の `Tasks` からタスクリストモーダルを開ける
+- Header の `Exit` から本番起動中のアプリ全体を終了できる
 - `Summary` / `Structure` / `Action items` / `Quick prompt` を実行できる
 - 結果はメモ単位で履歴保存される
 - `Action items` 実行後は AI task candidates を確認して選択保存できる
@@ -136,6 +137,8 @@ Chrome が見つからない場合は起動失敗になる。
   - backend 起動、静的フロント配信、Chrome 起動を行う
 
 まず初回は `install-*` を実行し、その後 `start-*` で起動する。
+
+本番起動後は、画面上部の `Exit` を押すとアプリを安全終了できる。終了後、タブは自動で閉じない場合があるため、その場合は画面の案内に従って手動で閉じる。
 
 ## GitHub 配布の最小構成
 

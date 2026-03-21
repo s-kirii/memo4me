@@ -17,7 +17,10 @@ import { TaskService } from "./services/task-service";
 import { createApiRouter } from "./routes/api";
 import { HttpError } from "./utils/http-error";
 
-export function createApp(db: AppDatabase) {
+export function createApp(
+  db: AppDatabase,
+  options?: { onShutdown?: () => void },
+) {
   const app = express();
   const noteRepository = new NoteRepository(db);
   const tagRepository = new TagRepository(db);
@@ -50,6 +53,7 @@ export function createApp(db: AppDatabase) {
       aiSettingsService,
       aiExecutionService,
       taskService,
+      options?.onShutdown,
     ),
   );
 

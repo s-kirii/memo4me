@@ -240,8 +240,14 @@ memo4me/
 ├─ doc/
 │  ├─ design.md
 │  ├─ detail-design.md
+│  ├─ user-guide.md
+│  ├─ release-guide.md
 │  └─ tasklist.md
-└─ dev.sh
+├─ dev.sh
+├─ install-memo4me.command
+├─ start-memo4me.command
+├─ install-memo4me.bat
+└─ start-memo4me.bat
 ```
 
 将来 Go へ移行する場合も、`frontend/` と `backend/` を分離しておくことで置き換えやすくする。

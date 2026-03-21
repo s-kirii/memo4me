@@ -1,4 +1,11 @@
-import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FocusEvent,
+  KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { RichTextEditor } from "./components/RichTextEditor";
 import "./App.css";
 
@@ -106,6 +113,8 @@ function App() {
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [tags, setTags] = useState<TagItem[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [isTagInputFocused, setIsTagInputFocused] = useState(false);
+  const [activeTagSuggestionIndex, setActiveTagSuggestionIndex] = useState(-1);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
@@ -114,6 +123,8 @@ function App() {
   const saveTimerRef = useRef<number | null>(null);
   const listReloadTimerRef = useRef<number | null>(null);
   const skipNextAutosaveRef = useRef(true);
+  const tagInputShellRef = useRef<HTMLDivElement | null>(null);
+  const tagSuggestionButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const loadNotes = async (options?: { preferredSelectedId?: string | null }) => {
     setIsListLoading(true);
@@ -334,8 +345,8 @@ function App() {
     }
   };
 
-  const handleAddTag = () => {
-    const nextTag = tagInput.trim();
+  const addTagByName = (rawTag: string) => {
+    const nextTag = rawTag.trim();
     if (!nextTag) {
       return;
     }
@@ -352,12 +363,143 @@ function App() {
       };
     });
     setTagInput("");
+    setActiveTagSuggestionIndex(-1);
+  };
+
+  const availableTagSuggestions = useMemo(() => {
+    const normalizedDraftTags = new Set(draft.tags.map((tag) => normalizeTag(tag)));
+    const normalizedInput = normalizeTag(tagInput);
+
+    if (!normalizedInput) {
+      return [];
+    }
+
+    return tags
+      .map((tag) => tag.name)
+      .filter((tagName) => !normalizedDraftTags.has(normalizeTag(tagName)))
+      .filter((tagName) => normalizeTag(tagName).includes(normalizedInput))
+      .slice(0, 5);
+  }, [draft.tags, tagInput, tags]);
+
+  useEffect(() => {
+    setActiveTagSuggestionIndex(-1);
+  }, [tagInput]);
+
+  const showTagSuggestions = isTagInputFocused && availableTagSuggestions.length > 0;
+
+  const handleAddTag = () => {
+    addTagByName(tagInput);
+  };
+
+  const handleSelectSuggestedTag = (tagName: string) => {
+    addTagByName(tagName);
+    setIsTagInputFocused(false);
   };
 
   const handleTagInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter" || event.key === ",") {
+    if (event.key === "Enter") {
       event.preventDefault();
       handleAddTag();
+      return;
+    }
+
+    if (event.key === "Tab" && availableTagSuggestions.length > 0) {
+      event.preventDefault();
+      const nextIndex = activeTagSuggestionIndex >= 0 ? activeTagSuggestionIndex : 0;
+      setActiveTagSuggestionIndex(nextIndex);
+      tagSuggestionButtonRefs.current[nextIndex]?.focus();
+      return;
+    }
+
+    if (event.key === "ArrowDown" && availableTagSuggestions.length > 0) {
+      event.preventDefault();
+      setActiveTagSuggestionIndex((currentIndex) =>
+        currentIndex < availableTagSuggestions.length - 1 ? currentIndex + 1 : 0,
+      );
+      return;
+    }
+
+    if (event.key === "ArrowUp" && availableTagSuggestions.length > 0) {
+      event.preventDefault();
+      setActiveTagSuggestionIndex((currentIndex) =>
+        currentIndex <= 0 ? availableTagSuggestions.length - 1 : currentIndex - 1,
+      );
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setIsTagInputFocused(false);
+      setActiveTagSuggestionIndex(-1);
+    }
+  };
+
+  const handleTagInputShellBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const nextFocusedElement = event.relatedTarget as Node | null;
+    if (tagInputShellRef.current?.contains(nextFocusedElement)) {
+      return;
+    }
+
+    setIsTagInputFocused(false);
+    setActiveTagSuggestionIndex(-1);
+  };
+
+  const handleTagSuggestionKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+    tagName: string,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleSelectSuggestedTag(tagName);
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      const nextIndex = index < availableTagSuggestions.length - 1 ? index + 1 : 0;
+      setActiveTagSuggestionIndex(nextIndex);
+      tagSuggestionButtonRefs.current[nextIndex]?.focus();
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      const nextIndex = index <= 0 ? availableTagSuggestions.length - 1 : index - 1;
+      setActiveTagSuggestionIndex(nextIndex);
+      tagSuggestionButtonRefs.current[nextIndex]?.focus();
+      return;
+    }
+
+    if (event.key === "Tab" && availableTagSuggestions.length > 0) {
+      if (event.shiftKey) {
+        if (index === 0) {
+          event.preventDefault();
+          setActiveTagSuggestionIndex(-1);
+          const input = tagInputShellRef.current?.querySelector("input");
+          if (input instanceof HTMLInputElement) {
+            input.focus();
+          }
+        }
+        return;
+      }
+
+      if (index < availableTagSuggestions.length - 1) {
+        event.preventDefault();
+        const nextIndex = index + 1;
+        setActiveTagSuggestionIndex(nextIndex);
+        tagSuggestionButtonRefs.current[nextIndex]?.focus();
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setIsTagInputFocused(false);
+      setActiveTagSuggestionIndex(-1);
+      const input = tagInputShellRef.current?.querySelector("input");
+      if (input instanceof HTMLInputElement) {
+        input.focus();
+      }
     }
   };
 
@@ -568,13 +710,48 @@ function App() {
 
                 <label className="tag-input">
                   <span className="visually-hidden">Add tag</span>
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(event) => setTagInput(event.target.value)}
-                    onKeyDown={handleTagInputKeyDown}
-                    placeholder="Add tag"
-                  />
+                  <div
+                    ref={tagInputShellRef}
+                    className="tag-input-shell"
+                    onFocus={() => setIsTagInputFocused(true)}
+                    onBlur={handleTagInputShellBlur}
+                  >
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(event) => {
+                        setTagInput(event.target.value);
+                      }}
+                      onKeyDown={handleTagInputKeyDown}
+                      placeholder="Add tag"
+                    />
+                    {showTagSuggestions ? (
+                      <div className="tag-suggestion-list" role="listbox">
+                        {availableTagSuggestions.map((tagName, index) => (
+                          <button
+                            key={tagName}
+                            ref={(element) => {
+                              tagSuggestionButtonRefs.current[index] = element;
+                            }}
+                            type="button"
+                            className={`tag-suggestion-item${
+                              index === activeTagSuggestionIndex ? " is-active" : ""
+                            }`}
+                            onFocus={() => setActiveTagSuggestionIndex(index)}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              handleSelectSuggestedTag(tagName);
+                            }}
+                            onKeyDown={(event) =>
+                              handleTagSuggestionKeyDown(event, index, tagName)
+                            }
+                          >
+                            {tagName}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </label>
                 <button
                   type="button"

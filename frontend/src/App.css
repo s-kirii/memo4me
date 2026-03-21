@@ -346,10 +346,44 @@
   color: #241b12;
 }
 
+.tag-input-shell {
+  position: relative;
+}
+
 .tag-add-button {
   min-height: 34px;
   padding: 6px 10px;
   border-radius: 999px;
+}
+
+.tag-suggestion-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid rgba(62, 41, 25, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 250, 243, 0.98);
+  box-shadow: 0 14px 36px rgba(75, 47, 27, 0.12);
+}
+
+.tag-suggestion-item {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #241b12;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.tag-suggestion-item:hover,
+.tag-suggestion-item.is-active {
+  background: rgba(193, 148, 92, 0.16);
+  outline: none;
 }
 
 .editor-divider {

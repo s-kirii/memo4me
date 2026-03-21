@@ -131,6 +131,7 @@ export type TaskItem = {
   tags: string[];
   startTargetDate: string | null;
   dueDate: string | null;
+  noteText: string | null;
   sourceNoteId: string | null;
   sourceNoteTitle: string | null;
   sourceSelectionText: string | null;
@@ -145,6 +146,7 @@ export type TaskInput = {
   tags?: string[];
   startTargetDate?: string | null;
   dueDate?: string | null;
+  noteText?: string | null;
   sourceNoteId?: string | null;
   sourceSelectionText?: string | null;
   createdBy?: TaskOrigin;
@@ -160,4 +162,6 @@ export type TaskUpdateInput = {
   tags?: string[];
   startTargetDate?: string | null;
   dueDate?: string | null;
+  noteText?: string | null;
+  sourceNoteId?: string | null;
 };

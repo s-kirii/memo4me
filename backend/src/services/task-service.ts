@@ -33,6 +33,15 @@ function normalizeDate(value: string | null | undefined) {
   return trimmed;
 }
 
+function normalizeTaskNote(value: string | null | undefined) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const normalized = value.replace(/\r\n/g, "\n").trim();
+  return normalized ? normalized : null;
+}
+
 export class TaskService {
   constructor(
     private readonly taskRepository: TaskRepository,
@@ -61,6 +70,7 @@ export class TaskService {
       tags,
       startTargetDate: normalizeDate(input.startTargetDate),
       dueDate: normalizeDate(input.dueDate),
+      noteText: normalizeTaskNote(input.noteText),
       sourceNoteId: input.sourceNoteId ?? null,
       sourceSelectionText: input.sourceSelectionText?.trim() || null,
       createdBy: input.createdBy ?? "manual",
@@ -96,11 +106,16 @@ export class TaskService {
     const nextTitle = input.title !== undefined ? input.title.trim() : existing.title;
     const nextStatus = input.status ?? existing.status;
     const nextTags = sanitizeTags(input.tags ?? existing.tags);
+    const nextSourceNoteId =
+      input.sourceNoteId !== undefined ? input.sourceNoteId : existing.sourceNoteId;
     const nextStartTargetDate = normalizeDate(
       input.startTargetDate !== undefined ? input.startTargetDate : existing.startTargetDate,
     );
     const nextDueDate = normalizeDate(
       input.dueDate !== undefined ? input.dueDate : existing.dueDate,
+    );
+    const nextNoteText = normalizeTaskNote(
+      input.noteText !== undefined ? input.noteText : existing.noteText,
     );
 
     if (!nextTitle) {
@@ -113,13 +128,19 @@ export class TaskService {
 
     assertStatus(nextStatus);
 
+    if (nextSourceNoteId && !this.noteRepository.noteExists(nextSourceNoteId)) {
+      throw new HttpError(404, "NOT_FOUND", "source note was not found");
+    }
+
     this.taskRepository.update({
       id,
       title: nextTitle,
       status: nextStatus,
       tags: nextTags,
+      sourceNoteId: nextSourceNoteId ?? null,
       startTargetDate: nextStartTargetDate,
       dueDate: nextDueDate,
+      noteText: nextNoteText,
       updatedAt: new Date().toISOString(),
     });
 
@@ -171,6 +192,18 @@ export class TaskService {
       typeof input.dueDate !== "string"
     ) {
       throw new HttpError(400, "VALIDATION_ERROR", "dueDate must be a string");
+    }
+
+    if (
+      input.noteText !== undefined &&
+      input.noteText !== null &&
+      typeof input.noteText !== "string"
+    ) {
+      throw new HttpError(400, "VALIDATION_ERROR", "noteText must be a string");
+    }
+
+    if (typeof input.noteText === "string" && input.noteText.trim().length > 300) {
+      throw new HttpError(400, "VALIDATION_ERROR", "noteText is too long");
     }
 
     if (

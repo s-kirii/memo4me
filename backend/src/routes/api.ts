@@ -69,6 +69,7 @@ function parseTaskInput(body: unknown): TaskInput {
     startTargetDate:
       typeof payload.startTargetDate === "string" ? payload.startTargetDate : null,
     dueDate: typeof payload.dueDate === "string" ? payload.dueDate : null,
+    noteText: typeof payload.noteText === "string" ? payload.noteText : null,
     sourceNoteId:
       typeof payload.sourceNoteId === "string" ? payload.sourceNoteId : null,
     sourceSelectionText:
@@ -87,6 +88,12 @@ function parseTaskUpdateInput(body: unknown): TaskUpdateInput {
     title: typeof payload.title === "string" ? payload.title : undefined,
     status: typeof payload.status === "string" ? payload.status : undefined,
     tags: Array.isArray(payload.tags) ? payload.tags : undefined,
+    sourceNoteId:
+      typeof payload.sourceNoteId === "string"
+        ? payload.sourceNoteId
+        : payload.sourceNoteId === null
+          ? null
+          : undefined,
     startTargetDate:
       typeof payload.startTargetDate === "string"
         ? payload.startTargetDate
@@ -97,6 +104,12 @@ function parseTaskUpdateInput(body: unknown): TaskUpdateInput {
       typeof payload.dueDate === "string"
         ? payload.dueDate
         : payload.dueDate === null
+          ? null
+          : undefined,
+    noteText:
+      typeof payload.noteText === "string"
+        ? payload.noteText
+        : payload.noteText === null
           ? null
           : undefined,
   };

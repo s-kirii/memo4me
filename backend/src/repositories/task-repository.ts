@@ -7,6 +7,7 @@ type TaskRow = {
   status: TaskStatus;
   start_target_date: string | null;
   due_date: string | null;
+  note_text: string | null;
   source_note_id: string | null;
   source_note_title: string | null;
   source_selection_text: string | null;
@@ -28,6 +29,7 @@ export class TaskRepository {
           tasks.status,
           tasks.start_target_date,
           tasks.due_date,
+          tasks.note_text,
           tasks.source_note_id,
           notes.title AS source_note_title,
           tasks.source_selection_text,
@@ -50,6 +52,7 @@ export class TaskRepository {
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
+      noteText: row.note_text,
       sourceNoteId: row.source_note_id,
       sourceNoteTitle: row.source_note_title,
       sourceSelectionText: row.source_selection_text,
@@ -69,6 +72,7 @@ export class TaskRepository {
           tasks.status,
           tasks.start_target_date,
           tasks.due_date,
+          tasks.note_text,
           tasks.source_note_id,
           notes.title AS source_note_title,
           tasks.source_selection_text,
@@ -94,6 +98,7 @@ export class TaskRepository {
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
+      noteText: row.note_text,
       sourceNoteId: row.source_note_id,
       sourceNoteTitle: row.source_note_title,
       sourceSelectionText: row.source_selection_text,
@@ -112,6 +117,7 @@ export class TaskRepository {
     tags: { name: string; normalizedName: string }[];
     startTargetDate: string | null;
     dueDate: string | null;
+    noteText: string | null;
     createdBy: "manual" | "ai";
     createdAt: string;
     updatedAt: string;
@@ -125,6 +131,7 @@ export class TaskRepository {
           status,
           start_target_date,
           due_date,
+          note_text,
           source_note_id,
           source_selection_text,
           created_by,
@@ -137,6 +144,7 @@ export class TaskRepository {
           @status,
           @startTargetDate,
           @dueDate,
+          @noteText,
           @sourceNoteId,
           @sourceSelectionText,
           @createdBy,
@@ -157,6 +165,8 @@ export class TaskRepository {
     tags: { name: string; normalizedName: string }[];
     startTargetDate: string | null;
     dueDate: string | null;
+    noteText: string | null;
+    sourceNoteId: string | null;
     updatedAt: string;
   }) {
     this.db
@@ -167,6 +177,8 @@ export class TaskRepository {
             status = @status,
             start_target_date = @startTargetDate,
             due_date = @dueDate,
+            note_text = @noteText,
+            source_note_id = @sourceNoteId,
             updated_at = @updatedAt
         WHERE id = @id
         `,

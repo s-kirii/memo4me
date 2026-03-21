@@ -35,6 +35,7 @@
 - `scripts/chrome-launcher.mjs`
 - `README.md`
 - `doc/user-guide.md`
+- `doc/ai-provider-setup.md`
 
 ## 4. Releases 作成フロー
 

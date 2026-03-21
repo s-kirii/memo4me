@@ -220,6 +220,10 @@ http://127.0.0.1:8787/api/health
 - `Gemini`
   - 既定 Base URL: `https://generativelanguage.googleapis.com/v1beta`
 
+provider ごとの key / endpoint / model の取得方法は、次のガイドを参照してください。
+
+- [AI Provider 設定ガイド](/xxxxx/memo4me/doc/ai-provider-setup.md)
+
 ### 9.3 API キーについて
 
 ルール:

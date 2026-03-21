@@ -53,6 +53,7 @@ export function TasksModal({
   onOpenNote,
   request,
 }: TasksModalProps) {
+  const [activeStatusTab, setActiveStatusTab] = useState<TaskStatus>("open");
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -122,6 +123,7 @@ export function TasksModal({
       return;
     }
 
+    setActiveStatusTab("open");
     setNewTaskTitle(initialDraftTitle);
     setNewTaskTags(currentNoteId ? currentNoteTags : []);
     setNewTagInput("");
@@ -136,6 +138,7 @@ export function TasksModal({
     () => tasks.filter((task) => task.status === "done"),
     [tasks],
   );
+  const visibleTasks = activeStatusTab === "open" ? openTasks : doneTasks;
 
   if (!isOpen) {
     return null;
@@ -421,14 +424,10 @@ export function TasksModal({
         aria-labelledby="tasks-modal-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="modal-header">
-          <div>
-            <p className="eyebrow">タスク</p>
-            <h2 id="tasks-modal-title">タスクリスト</h2>
-            <p className="modal-description">
-              メモとは別にタスクを管理し、必要に応じて元のメモへ戻れます。
-            </p>
-          </div>
+        <div className="modal-header tasks-modal-header">
+          <p id="tasks-modal-title" className="eyebrow">
+            タスクリスト
+          </p>
           <button type="button" className="ghost-button modal-close" onClick={onClose}>
             閉じる
           </button>
@@ -484,23 +483,36 @@ export function TasksModal({
 
         {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
 
-        <div className="tasks-columns">
-          <section className="modal-section">
-            <div className="section-heading">
-              <h3>未完了</h3>
-              <p>{openTasks.length} 件</p>
-            </div>
-            {isLoading ? <div className="list-empty">タスクを読み込み中...</div> : renderTaskList(openTasks)}
-          </section>
+        <section className="modal-section">
+          <div className="task-status-tabs" role="tablist" aria-label="タスクの表示切り替え">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeStatusTab === "open"}
+              className={`task-status-tab${activeStatusTab === "open" ? " is-active" : ""}`}
+              onClick={() => setActiveStatusTab("open")}
+            >
+              <span>未完了</span>
+              <small>{openTasks.length} 件</small>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeStatusTab === "done"}
+              className={`task-status-tab${activeStatusTab === "done" ? " is-active" : ""}`}
+              onClick={() => setActiveStatusTab("done")}
+            >
+              <span>完了</span>
+              <small>{doneTasks.length} 件</small>
+            </button>
+          </div>
 
-          <section className="modal-section">
-            <div className="section-heading">
-              <h3>完了</h3>
-              <p>{doneTasks.length} 件</p>
-            </div>
-            {isLoading ? <div className="list-empty">タスクを読み込み中...</div> : renderTaskList(doneTasks)}
-          </section>
-        </div>
+          {isLoading ? (
+            <div className="list-empty">タスクを読み込み中...</div>
+          ) : (
+            renderTaskList(visibleTasks)
+          )}
+        </section>
       </div>
     </div>
   );

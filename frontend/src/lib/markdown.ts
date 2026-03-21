@@ -1,4 +1,5 @@
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 
@@ -37,6 +38,10 @@ turndownService.addRule("fencedCodeBlockWithLanguage", {
 
 export function markdownToHtml(markdown: string) {
   return marked.parse(markdown) as string;
+}
+
+export function markdownToSafeHtml(markdown: string) {
+  return DOMPurify.sanitize(markdownToHtml(markdown));
 }
 
 export function htmlToMarkdown(html: string) {

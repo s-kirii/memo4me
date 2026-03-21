@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AiTaskCandidatesModal } from "./AiTaskCandidatesModal";
+import { MarkdownPreview } from "./MarkdownPreview";
 
 type AiActionType =
   | "summary"
@@ -17,6 +18,17 @@ type AiOutputItem = {
   model: string;
   contentMd: string;
   createdAt: string;
+};
+
+type AiSettingsResponse = {
+  activeProvider: AiProviderId;
+  providers: Array<{
+    provider: AiProviderId;
+    endpoint: string;
+    model: string;
+    hasApiKey: boolean;
+    updatedAt: string | null;
+  }>;
 };
 
 type AiTaskCandidate = {
@@ -43,14 +55,6 @@ const ACTION_OPTIONS: Array<{ id: AiActionType; label: string }> = [
   { id: "extract_action_items", label: "タスク抽出" },
   { id: "quick_prompt", label: "自由入力" },
 ];
-
-const ACTION_DESCRIPTIONS: Record<AiActionType, string> = {
-  summary: "現在のメモを短く分かりやすく要約します。",
-  structure: "メモの内容を整理し、見出しや箇条書きで読みやすく整えます。",
-  extract_action_items:
-    "具体的なタスク候補を抽出し、保存前に確認できます。",
-  quick_prompt: "現在のメモを文脈として、自由な指示で AI を実行します。",
-};
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -156,6 +160,7 @@ export function AiAssistantModal({
   request,
 }: AiAssistantModalProps) {
   const [history, setHistory] = useState<AiOutputItem[]>([]);
+  const [settings, setSettings] = useState<AiSettingsResponse | null>(null);
   const [selectedOutputId, setSelectedOutputId] = useState<string | null>(null);
   const [selectedAction, setSelectedAction] = useState<AiActionType>("summary");
   const [quickPrompt, setQuickPrompt] = useState("");
@@ -181,15 +186,17 @@ export function AiAssistantModal({
       setSuccessMessage(null);
 
       try {
-        const response = await request<{ items: AiOutputItem[] }>(
-          `/notes/${note.id}/ai-outputs`,
-        );
+        const [response, settingsResponse] = await Promise.all([
+          request<{ items: AiOutputItem[] }>(`/notes/${note.id}/ai-outputs`),
+          request<AiSettingsResponse>("/ai/settings"),
+        ]);
 
         if (cancelled) {
           return;
         }
 
         setHistory(response.items);
+        setSettings(settingsResponse);
         setSelectedOutputId(response.items[0]?.id ?? null);
       } catch (error) {
         if (cancelled) {
@@ -233,6 +240,15 @@ export function AiAssistantModal({
         : [],
     [selectedOutput],
   );
+  const activeProviderConfig = useMemo(
+    () =>
+      settings?.providers.find((item) => item.provider === settings.activeProvider) ?? null,
+    [settings],
+  );
+  const activeModelLabel = activeProviderConfig?.model.trim() || "未設定";
+  const activeProviderLabel = settings
+    ? getProviderLabel(settings.activeProvider)
+    : "未設定";
 
   if (!isOpen || !note) {
     return null;
@@ -344,13 +360,15 @@ export function AiAssistantModal({
         aria-labelledby="ai-assistant-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="modal-header">
-          <div>
-            <p className="eyebrow">AI</p>
-            <h2 id="ai-assistant-title">AIアシスタント</h2>
-            <p className="modal-description">
-              メモの内容を使って AI を実行し、結果を確認して反映または保存できます。
+        <div className="modal-header ai-assistant-header">
+          <div className="ai-assistant-title-block">
+            <p id="ai-assistant-title" className="eyebrow">
+              AIアシスタント
             </p>
+            <div className="ai-model-pill" title={`${activeProviderLabel} / ${activeModelLabel}`}>
+              <span>使用モデル</span>
+              <strong>{activeModelLabel}</strong>
+            </div>
           </div>
           <button type="button" className="ghost-button modal-close" onClick={onClose}>
             閉じる
@@ -362,14 +380,15 @@ export function AiAssistantModal({
             <div className="modal-section">
               <div className="section-heading">
                 <h3>実行内容</h3>
-                <p>このメモに対して AI に何をしてもらうかを選びます。</p>
               </div>
-              <div className="provider-pill-row">
+              <div className="ai-action-tabs" role="tablist" aria-label="AIアクション切り替え">
                 {ACTION_OPTIONS.map((option) => (
                   <button
                     key={option.id}
                     type="button"
-                    className={`provider-pill${
+                    role="tab"
+                    aria-selected={selectedAction === option.id}
+                    className={`ai-action-tab${
                       selectedAction === option.id ? " is-active" : ""
                     }`}
                     onClick={() => {
@@ -382,7 +401,6 @@ export function AiAssistantModal({
                   </button>
                 ))}
               </div>
-              <p className="inline-note">{ACTION_DESCRIPTIONS[selectedAction]}</p>
 
               {selectedAction === "quick_prompt" ? (
                 <label className="field">
@@ -412,7 +430,6 @@ export function AiAssistantModal({
             <div className="modal-section ai-history-section">
               <div className="section-heading">
                 <h3>履歴</h3>
-                <p>AI の実行結果はメモごとに保存されます。</p>
               </div>
               <label className="field">
                 <span>絞り込み</span>
@@ -479,7 +496,7 @@ export function AiAssistantModal({
                     }}
                     disabled={derivedTaskCandidates.length === 0}
                   >
-                    タスク候補を確認
+                    候補確認
                   </button>
                 ) : null}
                 <button
@@ -488,7 +505,7 @@ export function AiAssistantModal({
                   onClick={() => selectedOutput && onApplyToNote(selectedOutput.contentMd)}
                   disabled={!selectedOutput}
                 >
-                  メモに反映
+                  反映
                 </button>
                 <button
                   type="button"
@@ -496,7 +513,7 @@ export function AiAssistantModal({
                   onClick={() => void handleSaveAsNewNote()}
                   disabled={!selectedOutput || isSavingNewNote}
                 >
-                  {isSavingNewNote ? "保存中..." : "新規メモとして保存"}
+                  {isSavingNewNote ? "保存中..." : "別メモ保存"}
                 </button>
                 <button
                   type="button"
@@ -514,7 +531,10 @@ export function AiAssistantModal({
 
             <div className="ai-output-card">
               {selectedOutput ? (
-                <pre className="ai-output-content">{selectedOutput.contentMd}</pre>
+                <MarkdownPreview
+                  markdown={selectedOutput.contentMd}
+                  className="ai-output-content markdown-preview"
+                />
               ) : (
                 <div className="list-empty">
                   AI を実行すると、ここに結果が表示されます。

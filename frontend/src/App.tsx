@@ -110,6 +110,7 @@ function App() {
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeId>(() => {
     const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
     return savedTheme === "neo-workspace" ? "neo-workspace" : "soft-editorial";
@@ -126,6 +127,7 @@ function App() {
   const skipNextAutosaveRef = useRef(true);
   const tagInputShellRef = useRef<HTMLDivElement | null>(null);
   const tagSuggestionButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
 
   const loadNotes = async (options?: { preferredSelectedId?: string | null }) => {
     setIsListLoading(true);
@@ -203,6 +205,26 @@ function App() {
   useEffect(() => {
     void loadTags();
   }, []);
+
+  useEffect(() => {
+    if (!isSettingsMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (settingsMenuRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsSettingsMenuOpen(false);
+    };
+
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSettingsMenuOpen]);
 
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -585,34 +607,58 @@ function App() {
           <button
             type="button"
             className="ghost-button"
-            onClick={() => setIsAppearanceOpen(true)}
-          >
-            テーマ
-          </button>
-          <button
-            type="button"
-            className="ghost-button"
             onClick={() => setIsTasksOpen(true)}
           >
             タスク
           </button>
-          <button
-            type="button"
-            className="ghost-button"
-            onClick={() => setIsAiSettingsOpen(true)}
-          >
-            AI設定
-          </button>
           <button className="primary-button" onClick={() => void handleCreateNote()}>
             新規メモ
           </button>
+          <div ref={settingsMenuRef} className="settings-menu">
+            <button
+              type="button"
+              className="ghost-button settings-gear-button"
+              onClick={() => setIsSettingsMenuOpen((current) => !current)}
+              aria-label="設定を開く"
+              aria-expanded={isSettingsMenuOpen}
+            >
+              <span aria-hidden="true">⚙</span>
+            </button>
+
+            {isSettingsMenuOpen ? (
+              <div className="settings-popover">
+                <button
+                  type="button"
+                  className="settings-popover-item"
+                  onClick={() => {
+                    setIsAppearanceOpen(true);
+                    setIsSettingsMenuOpen(false);
+                  }}
+                >
+                  テーマ
+                </button>
+                <button
+                  type="button"
+                  className="settings-popover-item"
+                  onClick={() => {
+                    setIsAiSettingsOpen(true);
+                    setIsSettingsMenuOpen(false);
+                  }}
+                >
+                  AI設定
+                </button>
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
-            className="ghost-button danger-button"
+            className="ghost-button danger-button power-button"
             onClick={() => void handleExitApp()}
             disabled={isExiting}
+            aria-label="アプリを終了"
+            title="アプリを終了"
           >
-            {isExiting ? "終了中..." : "終了"}
+            <span aria-hidden="true">{isExiting ? "◔" : "⏻"}</span>
           </button>
         </div>
       </header>

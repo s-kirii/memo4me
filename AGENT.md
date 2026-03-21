@@ -97,7 +97,7 @@ These decisions are already settled unless the user explicitly changes them.
 - Chrome is a requirement for launch behavior
 - if Chrome cannot be found, launch should fail rather than falling back to another browser
 - MVP uses physical deletion, not trash/restore
-- task list blocks are out of MVP for now
+- task list modal and AI assistant are already implemented in the current app
 - Notion-like editing feel is a must-have
 - Markdown is the persisted source of truth
 - backend should remain replaceable via stable HTTP API boundaries

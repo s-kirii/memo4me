@@ -4,3 +4,7 @@ backend/node_modules/
 frontend/dist/
 backend/dist/
 *.log
+.env
+.env.*
+!.env.example
+.DS_Store

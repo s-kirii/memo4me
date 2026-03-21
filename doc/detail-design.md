@@ -1102,7 +1102,7 @@ backend/
   - AI provider 設定保存
   - 秘密情報の Keychain / DPAPI 連携
   - provider 接続テスト
-  - action ごとの prompt 組み立て
+  - `prompt-templates.ts` による action ごとの prompt テンプレート管理
   - AI 実行結果の保存
   - タスク作成 / 更新 / 削除
   - source note 整合性確認
@@ -1348,6 +1348,8 @@ README または配布資料には以下を明記する。
 - AI Assistant モーダル
 - 要約 / 構造化 / アクション抽出 / quick prompt 実行
 - AI 出力履歴保存
+- AI 出力履歴の action filter
+- AI 実行失敗時の案内改善
 - Action items からの AI task candidate review
 - タスクリストモーダル
 - tasks CRUD API

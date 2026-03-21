@@ -37,6 +37,7 @@ type ProviderOption = {
   modelLabel: string;
   modelPlaceholder: string;
   defaultEndpoint: string;
+  setupHint: string;
 };
 
 type AiSettingsModalProps = {
@@ -54,6 +55,8 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
     modelLabel: "Model",
     modelPlaceholder: "gpt-4.1-mini",
     defaultEndpoint: "https://api.openai.com/v1",
+    setupHint:
+      "Use this for OpenAI or other OpenAI-style providers. Base URL is prefilled.",
   },
   {
     id: "azure_openai",
@@ -63,6 +66,8 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
     modelLabel: "Deployment / model",
     modelPlaceholder: "my-gpt-deployment",
     defaultEndpoint: "",
+    setupHint:
+      "Azure requires your own resource endpoint and deployment/model name.",
   },
   {
     id: "gemini",
@@ -72,8 +77,26 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
     modelLabel: "Model",
     modelPlaceholder: "gemini-2.0-flash",
     defaultEndpoint: "https://generativelanguage.googleapis.com/v1beta",
+    setupHint:
+      "Gemini uses the Google Generative Language endpoint. Base URL is prefilled.",
   },
 ];
+
+function formatAiSettingsErrorMessage(message: string) {
+  if (/api key is required/i.test(message)) {
+    return "API key が未設定です。AI Settings で API key を入力して保存してください。";
+  }
+
+  if (/model is required/i.test(message)) {
+    return "model が未設定です。AI Settings で model を入力してください。";
+  }
+
+  if (/endpoint is required/i.test(message)) {
+    return "endpoint が未設定です。Azure OpenAI では endpoint の入力が必須です。";
+  }
+
+  return message;
+}
 
 function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
   const byId = Object.fromEntries(
@@ -193,7 +216,9 @@ export function AiSettingsModal({
         }
 
         setErrorMessage(
-          error instanceof Error ? error.message : "failed to load AI settings",
+          error instanceof Error
+            ? formatAiSettingsErrorMessage(error.message)
+            : "failed to load AI settings",
         );
       } finally {
         if (!cancelled) {
@@ -261,7 +286,9 @@ export function AiSettingsModal({
       setErrorMessage(null);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "failed to save AI settings",
+        error instanceof Error
+          ? formatAiSettingsErrorMessage(error.message)
+          : "failed to save AI settings",
       );
     } finally {
       setIsSaving(false);
@@ -291,7 +318,9 @@ export function AiSettingsModal({
       setTestMessage(response.message);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "connection test failed",
+        error instanceof Error
+          ? formatAiSettingsErrorMessage(error.message)
+          : "connection test failed",
       );
     } finally {
       setIsTesting(false);
@@ -381,6 +410,7 @@ export function AiSettingsModal({
                   <div>
                     <h4>{selectedOption.label}</h4>
                     <p>Last updated: {formatUpdatedAt(selectedDraft.updatedAt)}</p>
+                    <p>{selectedOption.setupHint}</p>
                   </div>
                   <span
                     className={`provider-state-pill${

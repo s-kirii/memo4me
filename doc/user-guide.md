@@ -188,7 +188,86 @@ http://127.0.0.1:8787/api/health
 - ローカル DB はユーザーディレクトリ配下に保存されるため、通常はアプリ更新で消えません
 - ただし、更新前にバックアップを取りたい場合は DB ファイルを別途保存してください
 
-## 9. FAQ
+## 9. AI 機能の使い方
+
+### 9.1 AI Settings を開く
+
+1. アプリ上部の `AI Settings` を押します
+2. 使用したい provider を選びます
+3. `Model` と `API key` を入力します
+4. 必要なら `Endpoint` を確認または入力します
+5. `Test connection` で接続確認します
+6. 問題なければ `Save AI settings` を押します
+
+### 9.2 対応 provider
+
+- `OpenAI-compatible`
+  - 既定 Base URL: `https://api.openai.com/v1`
+  - OpenAI 形式の API に使います
+- `Azure OpenAI`
+  - endpoint はユーザーごとの Azure resource に依存します
+  - 例: `https://<resource>.openai.azure.com/openai/v1`
+- `Gemini`
+  - 既定 Base URL: `https://generativelanguage.googleapis.com/v1beta`
+
+### 9.3 API キーについて
+
+ルール:
+
+- API キーは provider ごとに設定します
+- 既に保存済みのキーは再表示されません
+- 置き換えたい場合だけ新しいキーを入力します
+- 削除したい場合は `Clear saved key` を使います
+
+補足:
+
+- macOS では Keychain
+- Windows では DPAPI
+
+を使う想定です
+
+### 9.4 AI Assistant の使い方
+
+1. メモを開きます
+2. 右ペイン上部の `AI` を押します
+3. 次のいずれかを選びます
+
+- `Summarize`
+- `Structure`
+- `Action items`
+- `Quick prompt`
+
+結果に対しては次ができます。
+
+- 本文へ反映
+- 新しいメモとして保存
+- クリップボードへコピー
+- `Action items` では task candidate を確認して Tasks へ保存
+
+### 9.5 よくある AI エラー
+
+`API key が未設定です`
+
+- AI Settings で対象 provider の API key を保存してください
+
+`model が未設定です`
+
+- AI Settings で対象 provider の model を入力してください
+
+`endpoint が未設定です`
+
+- 特に Azure OpenAI では endpoint 入力が必要です
+
+`AI 呼び出しに失敗しました`
+
+- provider
+- model
+- endpoint
+- API key
+
+を確認して、`Test connection` を先に通してください
+
+## 10. FAQ
 
 ### `git clone` は必要ですか？
 

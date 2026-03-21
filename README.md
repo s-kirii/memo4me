@@ -111,6 +111,7 @@ Chrome が見つからない場合は起動失敗になる。
 補足:
 
 - 実行には API キー設定が必要
+- 対応 provider は `OpenAI-compatible` / `Azure OpenAI` / `Gemini`
 - タスクリストは独立モーダルとして追加済み
 
 ## ダブルクリック起動用ランチャー

@@ -1,3 +1,4 @@
+import { AI_ACTION_LABELS, buildAiPrompts } from "../ai/prompt-templates";
 import { createAiProviderAdapter } from "../ai/provider-adapters";
 import { AiOutputRepository } from "../repositories/ai-output-repository";
 import { NoteRepository } from "../repositories/note-repository";
@@ -11,13 +12,6 @@ import type {
 } from "../types";
 import { HttpError } from "../utils/http-error";
 
-const ACTION_LABELS: Record<AiActionType, string> = {
-  summary: "Summary",
-  structure: "Structured rewrite",
-  extract_action_items: "Action items",
-  quick_prompt: "Quick prompt",
-};
-
 function assertAction(action: string): asserts action is AiActionType {
   if (
     action !== "summary" &&
@@ -27,71 +21,6 @@ function assertAction(action: string): asserts action is AiActionType {
   ) {
     throw new HttpError(400, "VALIDATION_ERROR", "action is invalid");
   }
-}
-
-function buildPrompts(
-  action: AiActionType,
-  noteTitle: string,
-  noteContentMd: string,
-  customPrompt?: string,
-) {
-  const baseContext = [
-    `Title: ${noteTitle.trim() || "Untitled"}`,
-    "",
-    "Note content in Markdown:",
-    noteContentMd || "(empty)",
-  ].join("\n");
-
-  if (action === "summary") {
-    return {
-      systemPrompt:
-        "You are an assistant inside a local note app. Produce concise, accurate markdown. Do not invent facts.",
-      userPrompt: [
-        "Summarize the note in markdown.",
-        "Keep the answer concise and useful.",
-        "Prefer short sections and bullets when helpful.",
-        "",
-        baseContext,
-      ].join("\n"),
-    };
-  }
-
-  if (action === "structure") {
-    return {
-      systemPrompt:
-        "You reorganize notes into clearer markdown while preserving meaning. Do not add facts that are not present in the source.",
-      userPrompt: [
-        "Rewrite this note into a clearer structured markdown document.",
-        "Use headings and bullets where they help readability.",
-        "",
-        baseContext,
-      ].join("\n"),
-    };
-  }
-
-  if (action === "extract_action_items") {
-    return {
-      systemPrompt:
-        "You extract only concrete actionable tasks from notes. Return markdown only.",
-      userPrompt: [
-        "Extract action items from this note.",
-        "Return a markdown checklist using '- [ ]'.",
-        "If there are no clear tasks, say 'No clear action items.'",
-        "",
-        baseContext,
-      ].join("\n"),
-    };
-  }
-
-  return {
-    systemPrompt:
-      "You are an assistant inside a local note app. Use the note as source context and respond in markdown.",
-    userPrompt: [
-      `User instruction: ${customPrompt?.trim() || "Help with this note."}`,
-      "",
-      baseContext,
-    ].join("\n"),
-  };
 }
 
 function normalizeTaskLine(line: string) {
@@ -165,7 +94,7 @@ export class AiExecutionService {
   }
 
   getActionLabel(action: AiActionType) {
-    return ACTION_LABELS[action];
+    return AI_ACTION_LABELS[action];
   }
 
   private async runOutputForNote(
@@ -196,15 +125,32 @@ export class AiExecutionService {
     }
 
     const providerConfig = this.aiSettingsService.getResolvedActiveProviderConfig();
-    const prompts = buildPrompts(
+    const prompts = buildAiPrompts(
       input.action,
       note.title,
       note.contentMd,
       input.prompt,
     );
-
     const adapter = createAiProviderAdapter(providerConfig.provider);
-    const generation = await adapter.generateText(providerConfig, prompts);
+    let generation;
+
+    try {
+      generation = await adapter.generateText(providerConfig, prompts);
+    } catch (error) {
+      if (error instanceof HttpError) {
+        if (error.code === "AI_CONNECTION_FAILED") {
+          throw new HttpError(
+            error.status,
+            error.code,
+            `AI request failed. Open AI Settings and verify provider, model, endpoint, and API key. Details: ${error.message}`,
+          );
+        }
+
+        throw error;
+      }
+
+      throw error;
+    }
     const now = new Date().toISOString();
     const output: AiOutputItem = {
       id: crypto.randomUUID(),

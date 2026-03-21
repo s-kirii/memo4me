@@ -1,4 +1,9 @@
-import { AI_PROVIDER_IDS, DEFAULT_AI_PROVIDER, getDefaultAiEndpoint } from "../ai/defaults";
+import {
+  AI_PROVIDER_IDS,
+  DEFAULT_AI_PROVIDER,
+  getDefaultAiEndpoint,
+  getProviderLabel,
+} from "../ai/defaults";
 import {
   createAiProviderAdapter,
   type AiProviderRequestConfig,
@@ -169,17 +174,30 @@ export class AiSettingsService {
         })
       : null;
     const apiKey = inlineApiKey || savedApiKey || "";
+    const providerLabel = getProviderLabel(input.provider);
 
     if (!model) {
-      throw new HttpError(400, "VALIDATION_ERROR", "model is required");
+      throw new HttpError(
+        400,
+        "VALIDATION_ERROR",
+        `${providerLabel} model is required. Open AI Settings and set a model first.`,
+      );
     }
 
     if (!apiKey) {
-      throw new HttpError(400, "VALIDATION_ERROR", "apiKey is required");
+      throw new HttpError(
+        400,
+        "VALIDATION_ERROR",
+        `${providerLabel} API key is required. Open AI Settings and save an API key first.`,
+      );
     }
 
     if (input.provider === "azure_openai" && !endpoint) {
-      throw new HttpError(400, "VALIDATION_ERROR", "endpoint is required");
+      throw new HttpError(
+        400,
+        "VALIDATION_ERROR",
+        "Azure OpenAI endpoint is required. Open AI Settings and set the resource endpoint first.",
+      );
     }
 
     return {

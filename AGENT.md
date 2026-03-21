@@ -125,6 +125,7 @@ Key files and responsibilities:
 - task repository: [task-repository.ts](/xxxxx/memo4me/backend/src/repositories/task-repository.ts)
 - Tag repository: [tag-repository.ts](/xxxxx/memo4me/backend/src/repositories/tag-repository.ts)
 - AI provider adapters: [provider-adapters.ts](/xxxxx/memo4me/backend/src/ai/provider-adapters.ts)
+- AI prompt templates: [prompt-templates.ts](/xxxxx/memo4me/backend/src/ai/prompt-templates.ts)
 - AI secret storage abstraction: [platform-secret-store.ts](/xxxxx/memo4me/backend/src/ai/platform-secret-store.ts)
 - Initial DB schema: [001_init.sql](/xxxxx/memo4me/backend/migrations/001_init.sql)
 

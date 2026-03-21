@@ -44,6 +44,14 @@ const ACTION_OPTIONS: Array<{ id: AiActionType; label: string }> = [
   { id: "quick_prompt", label: "Quick prompt" },
 ];
 
+const ACTION_DESCRIPTIONS: Record<AiActionType, string> = {
+  summary: "Create a concise summary for the current note.",
+  structure: "Rewrite the note into cleaner sections and bullets.",
+  extract_action_items:
+    "Extract concrete task candidates and review them before saving.",
+  quick_prompt: "Run a custom prompt against the current note context.",
+};
+
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -70,6 +78,37 @@ function getOutputTitle(action: AiActionType) {
     default:
       return "Quick prompt result";
   }
+}
+
+function getProviderLabel(provider: AiProviderId) {
+  switch (provider) {
+    case "openai_compatible":
+      return "OpenAI-compatible";
+    case "azure_openai":
+      return "Azure OpenAI";
+    case "gemini":
+      return "Gemini";
+  }
+}
+
+function formatAiErrorMessage(message: string) {
+  if (/api key is required/i.test(message)) {
+    return "API key が未設定です。AI Settings で選択中 provider の API key を保存してください。";
+  }
+
+  if (/model is required/i.test(message)) {
+    return "モデルが未設定です。AI Settings で選択中 provider の model を設定してください。";
+  }
+
+  if (/endpoint is required/i.test(message)) {
+    return "endpoint が未設定です。AI Settings で provider の接続先を設定してください。";
+  }
+
+  if (/AI request failed/i.test(message) || /AI_CONNECTION_FAILED/i.test(message)) {
+    return `AI 呼び出しに失敗しました。AI Settings の provider / model / endpoint / API key を確認してください。詳細: ${message}`;
+  }
+
+  return message;
 }
 
 function normalizeTaskLine(line: string) {
@@ -127,6 +166,7 @@ export function AiAssistantModal({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [taskCandidates, setTaskCandidates] = useState<AiTaskCandidate[]>([]);
   const [isTaskCandidatesOpen, setIsTaskCandidatesOpen] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<AiActionType | "all">("all");
 
   useEffect(() => {
     if (!isOpen || !note) {
@@ -157,7 +197,9 @@ export function AiAssistantModal({
         }
 
         setErrorMessage(
-          error instanceof Error ? error.message : "failed to load AI history",
+          error instanceof Error
+            ? formatAiErrorMessage(error.message)
+            : "failed to load AI history",
         );
       } finally {
         if (!cancelled) {
@@ -176,6 +218,13 @@ export function AiAssistantModal({
   const selectedOutput = useMemo(
     () => history.find((item) => item.id === selectedOutputId) ?? history[0] ?? null,
     [history, selectedOutputId],
+  );
+  const filteredHistory = useMemo(
+    () =>
+      historyFilter === "all"
+        ? history
+        : history.filter((item) => item.action === historyFilter),
+    [history, historyFilter],
   );
   const derivedTaskCandidates = useMemo(
     () =>
@@ -230,7 +279,9 @@ export function AiAssistantModal({
       }
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "failed to run AI action",
+        error instanceof Error
+          ? formatAiErrorMessage(error.message)
+          : "failed to run AI action",
       );
     } finally {
       setIsRunning(false);
@@ -275,7 +326,9 @@ export function AiAssistantModal({
       setSuccessMessage("Saved as a new note.");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "failed to save as a new note",
+        error instanceof Error
+          ? formatAiErrorMessage(error.message)
+          : "failed to save as a new note",
       );
     } finally {
       setIsSavingNewNote(false);
@@ -329,6 +382,7 @@ export function AiAssistantModal({
                   </button>
                 ))}
               </div>
+              <p className="inline-note">{ACTION_DESCRIPTIONS[selectedAction]}</p>
 
               {selectedAction === "quick_prompt" ? (
                 <label className="field">
@@ -360,13 +414,29 @@ export function AiAssistantModal({
                 <h3>History</h3>
                 <p>Outputs are saved per note.</p>
               </div>
+              <label className="field">
+                <span>Filter</span>
+                <select
+                  value={historyFilter}
+                  onChange={(event) =>
+                    setHistoryFilter(event.target.value as AiActionType | "all")
+                  }
+                >
+                  <option value="all">All actions</option>
+                  {ACTION_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="ai-history-list">
                 {isLoadingHistory ? (
                   <div className="list-empty">Loading AI history...</div>
-                ) : history.length === 0 ? (
-                  <div className="list-empty">No AI outputs yet</div>
+                ) : filteredHistory.length === 0 ? (
+                  <div className="list-empty">No AI outputs for this filter</div>
                 ) : (
-                  history.map((item) => (
+                  filteredHistory.map((item) => (
                     <button
                       key={item.id}
                       type="button"
@@ -376,7 +446,7 @@ export function AiAssistantModal({
                       onClick={() => setSelectedOutputId(item.id)}
                     >
                       <strong>{getOutputTitle(item.action)}</strong>
-                      <span>{item.provider}</span>
+                      <span>{getProviderLabel(item.provider)}</span>
                       <span>{item.model}</span>
                       <span>{formatDateTime(item.createdAt)}</span>
                     </button>
@@ -391,6 +461,12 @@ export function AiAssistantModal({
               <div>
                 <p className="eyebrow">Result</p>
                 <h3>{selectedOutput ? getOutputTitle(selectedOutput.action) : "No output yet"}</h3>
+                {selectedOutput ? (
+                  <p className="inline-note">
+                    {getProviderLabel(selectedOutput.provider)} / {selectedOutput.model} /{" "}
+                    {formatDateTime(selectedOutput.createdAt)}
+                  </p>
+                ) : null}
               </div>
               <div className="editor-meta-actions">
                 {selectedOutput?.action === "extract_action_items" ? (

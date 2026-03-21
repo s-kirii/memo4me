@@ -10,17 +10,10 @@
 
 .app-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 14px;
-}
-
-.app-header h1 {
-  margin: 4px 0 0;
-  font-size: clamp(1.4rem, 2.4vw, 2.2rem);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
+  margin-bottom: 12px;
 }
 
 .eyebrow {
@@ -34,13 +27,14 @@
 
 .header-actions {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
 }
 
 .primary-button {
   min-width: 104px;
   min-height: 42px;
+  border-radius: 14px;
   background: #241b12;
   color: #fff8ee;
 }
@@ -48,6 +42,7 @@
 .ghost-button {
   min-height: 38px;
   border: 1px solid rgba(62, 41, 25, 0.14);
+  border-radius: 14px;
   background: rgba(255, 250, 243, 0.9);
   color: #241b12;
 }
@@ -95,11 +90,16 @@
   padding: 10px 12px;
 }
 
+.search-field input {
+  width: 100%;
+  min-width: 0;
+}
+
 .app-layout {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
-  height: calc(100vh - 116px);
+  height: calc(100vh - 92px);
   min-height: 0;
 }
 
@@ -250,8 +250,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(36, 27, 18, 0.22);
-  backdrop-filter: blur(8px);
+  background: rgba(36, 27, 18, 0.28);
 }
 
 .modal-card {

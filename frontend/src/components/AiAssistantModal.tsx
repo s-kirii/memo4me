@@ -38,18 +38,18 @@ type AiAssistantModalProps = {
 };
 
 const ACTION_OPTIONS: Array<{ id: AiActionType; label: string }> = [
-  { id: "summary", label: "Summarize" },
-  { id: "structure", label: "Structure" },
-  { id: "extract_action_items", label: "Action items" },
-  { id: "quick_prompt", label: "Quick prompt" },
+  { id: "summary", label: "要約" },
+  { id: "structure", label: "構造化" },
+  { id: "extract_action_items", label: "タスク抽出" },
+  { id: "quick_prompt", label: "自由入力" },
 ];
 
 const ACTION_DESCRIPTIONS: Record<AiActionType, string> = {
-  summary: "Create a concise summary for the current note.",
-  structure: "Rewrite the note into cleaner sections and bullets.",
+  summary: "現在のメモを短く分かりやすく要約します。",
+  structure: "メモの内容を整理し、見出しや箇条書きで読みやすく整えます。",
   extract_action_items:
-    "Extract concrete task candidates and review them before saving.",
-  quick_prompt: "Run a custom prompt against the current note context.",
+    "具体的なタスク候補を抽出し、保存前に確認できます。",
+  quick_prompt: "現在のメモを文脈として、自由な指示で AI を実行します。",
 };
 
 function formatDateTime(value: string) {
@@ -69,21 +69,21 @@ function formatDateTime(value: string) {
 function getOutputTitle(action: AiActionType) {
   switch (action) {
     case "summary":
-      return "Summary";
+      return "要約";
     case "structure":
-      return "Structured note";
+      return "構造化メモ";
     case "extract_action_items":
-      return "Action items";
+      return "タスク抽出";
     case "quick_prompt":
     default:
-      return "Quick prompt result";
+      return "自由入力の結果";
   }
 }
 
 function getProviderLabel(provider: AiProviderId) {
   switch (provider) {
     case "openai_compatible":
-      return "OpenAI-compatible";
+      return "OpenAI互換";
     case "azure_openai":
       return "Azure OpenAI";
     case "gemini":
@@ -93,19 +93,19 @@ function getProviderLabel(provider: AiProviderId) {
 
 function formatAiErrorMessage(message: string) {
   if (/api key is required/i.test(message)) {
-    return "API key が未設定です。AI Settings で選択中 provider の API key を保存してください。";
+    return "APIキーが未設定です。AI設定で選択中プロバイダの APIキー を保存してください。";
   }
 
   if (/model is required/i.test(message)) {
-    return "モデルが未設定です。AI Settings で選択中 provider の model を設定してください。";
+    return "モデルが未設定です。AI設定で選択中プロバイダのモデルを設定してください。";
   }
 
   if (/endpoint is required/i.test(message)) {
-    return "endpoint が未設定です。AI Settings で provider の接続先を設定してください。";
+    return "エンドポイントが未設定です。AI設定でプロバイダの接続先を設定してください。";
   }
 
   if (/AI request failed/i.test(message) || /AI_CONNECTION_FAILED/i.test(message)) {
-    return `AI 呼び出しに失敗しました。AI Settings の provider / model / endpoint / API key を確認してください。詳細: ${message}`;
+    return `AI 呼び出しに失敗しました。AI設定のプロバイダ / モデル / エンドポイント / APIキー を確認してください。詳細: ${message}`;
   }
 
   return message;
@@ -199,7 +199,7 @@ export function AiAssistantModal({
         setErrorMessage(
           error instanceof Error
             ? formatAiErrorMessage(error.message)
-            : "failed to load AI history",
+            : "AI履歴の読み込みに失敗しました",
         );
       } finally {
         if (!cancelled) {
@@ -258,8 +258,8 @@ export function AiAssistantModal({
         setIsTaskCandidatesOpen(true);
         setSuccessMessage(
           response.candidates.length > 0
-            ? `${response.candidates.length} task candidates generated.`
-            : "No clear AI task candidates were found.",
+            ? `${response.candidates.length} 件のタスク候補を作成しました。`
+            : "明確なタスク候補は見つかりませんでした。",
         );
       } else {
         const response = await request<{ item: AiOutputItem }>(
@@ -275,13 +275,13 @@ export function AiAssistantModal({
 
         setHistory((currentHistory) => [response.item, ...currentHistory]);
         setSelectedOutputId(response.item.id);
-        setSuccessMessage(`${getOutputTitle(response.item.action)} generated.`);
+        setSuccessMessage(`${getOutputTitle(response.item.action)}を作成しました。`);
       }
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? formatAiErrorMessage(error.message)
-          : "failed to run AI action",
+          : "AIの実行に失敗しました",
       );
     } finally {
       setIsRunning(false);
@@ -295,10 +295,10 @@ export function AiAssistantModal({
 
     try {
       await navigator.clipboard.writeText(selectedOutput.contentMd);
-      setSuccessMessage("Copied to clipboard.");
+      setSuccessMessage("クリップボードにコピーしました。");
       setErrorMessage(null);
     } catch {
-      setErrorMessage("failed to copy to clipboard");
+      setErrorMessage("クリップボードへのコピーに失敗しました");
     }
   };
 
@@ -314,21 +314,21 @@ export function AiAssistantModal({
     try {
       const titleSuffix =
         selectedOutput.action === "summary"
-          ? "Summary"
+          ? "要約"
           : selectedOutput.action === "structure"
-            ? "Structured"
+            ? "構造化"
             : selectedOutput.action === "extract_action_items"
-              ? "Action items"
-              : "AI result";
-      const noteTitle = `${note.title.trim() || "Untitled"} - ${titleSuffix}`;
+              ? "タスク抽出"
+              : "AI結果";
+      const noteTitle = `${note.title.trim() || "無題"} - ${titleSuffix}`;
 
       await onCreateNoteFromOutput(noteTitle, selectedOutput.contentMd);
-      setSuccessMessage("Saved as a new note.");
+      setSuccessMessage("新しいメモとして保存しました。");
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? formatAiErrorMessage(error.message)
-          : "failed to save as a new note",
+          : "新しいメモとしての保存に失敗しました",
       );
     } finally {
       setIsSavingNewNote(false);
@@ -347,13 +347,13 @@ export function AiAssistantModal({
         <div className="modal-header">
           <div>
             <p className="eyebrow">AI</p>
-            <h2 id="ai-assistant-title">AI Assistant</h2>
+            <h2 id="ai-assistant-title">AIアシスタント</h2>
             <p className="modal-description">
-              Run note-aware AI actions, review the result, then apply or save it.
+              メモの内容を使って AI を実行し、結果を確認して反映または保存できます。
             </p>
           </div>
           <button type="button" className="ghost-button modal-close" onClick={onClose}>
-            Close
+            閉じる
           </button>
         </div>
 
@@ -361,8 +361,8 @@ export function AiAssistantModal({
           <section className="ai-assistant-sidebar">
             <div className="modal-section">
               <div className="section-heading">
-                <h3>Actions</h3>
-                <p>Select how AI should help with this note.</p>
+                <h3>実行内容</h3>
+                <p>このメモに対して AI に何をしてもらうかを選びます。</p>
               </div>
               <div className="provider-pill-row">
                 {ACTION_OPTIONS.map((option) => (
@@ -386,12 +386,12 @@ export function AiAssistantModal({
 
               {selectedAction === "quick_prompt" ? (
                 <label className="field">
-                  <span>Prompt</span>
+                  <span>指示</span>
                   <textarea
                     className="ai-prompt-textarea"
                     value={quickPrompt}
                     onChange={(event) => setQuickPrompt(event.target.value)}
-                    placeholder="Ask AI to rewrite, classify, or inspect this note."
+                    placeholder="要約、分類、書き換えなど、AIへの指示を入力してください。"
                   />
                 </label>
               ) : null}
@@ -405,24 +405,24 @@ export function AiAssistantModal({
                   (selectedAction === "quick_prompt" && !quickPrompt.trim())
                 }
               >
-                {isRunning ? "Running..." : "Run"}
+                {isRunning ? "実行中..." : "実行"}
               </button>
             </div>
 
             <div className="modal-section ai-history-section">
               <div className="section-heading">
-                <h3>History</h3>
-                <p>Outputs are saved per note.</p>
+                <h3>履歴</h3>
+                <p>AI の実行結果はメモごとに保存されます。</p>
               </div>
               <label className="field">
-                <span>Filter</span>
+                <span>絞り込み</span>
                 <select
                   value={historyFilter}
                   onChange={(event) =>
                     setHistoryFilter(event.target.value as AiActionType | "all")
                   }
                 >
-                  <option value="all">All actions</option>
+                  <option value="all">すべて</option>
                   {ACTION_OPTIONS.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
@@ -432,9 +432,9 @@ export function AiAssistantModal({
               </label>
               <div className="ai-history-list">
                 {isLoadingHistory ? (
-                  <div className="list-empty">Loading AI history...</div>
+                  <div className="list-empty">AI履歴を読み込み中...</div>
                 ) : filteredHistory.length === 0 ? (
-                  <div className="list-empty">No AI outputs for this filter</div>
+                  <div className="list-empty">この条件の AI 出力はありません</div>
                 ) : (
                   filteredHistory.map((item) => (
                     <button
@@ -459,8 +459,8 @@ export function AiAssistantModal({
           <section className="ai-output-panel">
             <div className="ai-output-header">
               <div>
-                <p className="eyebrow">Result</p>
-                <h3>{selectedOutput ? getOutputTitle(selectedOutput.action) : "No output yet"}</h3>
+                <p className="eyebrow">結果</p>
+                <h3>{selectedOutput ? getOutputTitle(selectedOutput.action) : "まだ結果はありません"}</h3>
                 {selectedOutput ? (
                   <p className="inline-note">
                     {getProviderLabel(selectedOutput.provider)} / {selectedOutput.model} /{" "}
@@ -479,7 +479,7 @@ export function AiAssistantModal({
                     }}
                     disabled={derivedTaskCandidates.length === 0}
                   >
-                    Review task candidates
+                    タスク候補を確認
                   </button>
                 ) : null}
                 <button
@@ -488,7 +488,7 @@ export function AiAssistantModal({
                   onClick={() => selectedOutput && onApplyToNote(selectedOutput.contentMd)}
                   disabled={!selectedOutput}
                 >
-                  Apply to note
+                  メモに反映
                 </button>
                 <button
                   type="button"
@@ -496,7 +496,7 @@ export function AiAssistantModal({
                   onClick={() => void handleSaveAsNewNote()}
                   disabled={!selectedOutput || isSavingNewNote}
                 >
-                  {isSavingNewNote ? "Saving..." : "Save as new note"}
+                  {isSavingNewNote ? "保存中..." : "新規メモとして保存"}
                 </button>
                 <button
                   type="button"
@@ -504,7 +504,7 @@ export function AiAssistantModal({
                   onClick={() => void handleCopy()}
                   disabled={!selectedOutput}
                 >
-                  Copy
+                  コピー
                 </button>
               </div>
             </div>
@@ -517,7 +517,7 @@ export function AiAssistantModal({
                 <pre className="ai-output-content">{selectedOutput.contentMd}</pre>
               ) : (
                 <div className="list-empty">
-                  Run an AI action to generate the first result.
+                  AI を実行すると、ここに結果が表示されます。
                 </div>
               )}
             </div>
@@ -530,7 +530,7 @@ export function AiAssistantModal({
           candidates={taskCandidates}
           onClose={() => setIsTaskCandidatesOpen(false)}
           onSaved={(items) => {
-            setSuccessMessage(`${items.length} AI tasks saved.`);
+            setSuccessMessage(`${items.length} 件の AI タスクを保存しました。`);
           }}
           request={request}
         />

@@ -37,7 +37,7 @@ export class PlatformSecretStore {
       return {
         strategy: "keychain",
         supported: true,
-        note: "API keys are stored in macOS Keychain.",
+        note: "APIキーは macOS のキーチェーンに保存されます。",
       };
     }
 
@@ -45,14 +45,14 @@ export class PlatformSecretStore {
       return {
         strategy: "dpapi",
         supported: true,
-        note: "API keys are stored with Windows DPAPI protection.",
+        note: "APIキーは Windows の DPAPI で保護して保存されます。",
       };
     }
 
     return {
       strategy: "unsupported",
       supported: false,
-      note: "AI key storage is supported on macOS and Windows only.",
+      note: "AIキーの保存に対応しているのは macOS と Windows のみです。",
     };
   }
 

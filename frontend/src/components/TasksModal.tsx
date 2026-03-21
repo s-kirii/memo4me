@@ -81,7 +81,7 @@ export function TasksModal({
         }
 
         setErrorMessage(
-          error instanceof Error ? error.message : "failed to load tasks",
+          error instanceof Error ? error.message : "タスクの読み込みに失敗しました",
         );
       } finally {
         if (!cancelled) {
@@ -147,7 +147,7 @@ export function TasksModal({
       setNewTaskTitle("");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "failed to create task",
+        error instanceof Error ? error.message : "タスクの作成に失敗しました",
       );
     } finally {
       setIsCreating(false);
@@ -181,7 +181,7 @@ export function TasksModal({
 
   const renderTaskList = (items: TaskItem[]) => {
     if (items.length === 0) {
-      return <div className="list-empty">No tasks in this section</div>;
+      return <div className="list-empty">このセクションにタスクはありません</div>;
     }
 
     return (
@@ -219,7 +219,7 @@ export function TasksModal({
 
             <div className="task-meta-row">
               <span className={`task-origin-pill is-${task.createdBy}`}>
-                {task.createdBy === "ai" ? "AI" : "Manual"}
+                {task.createdBy === "ai" ? "AI" : "手動"}
               </span>
               <span>{formatDateTime(task.updatedAt)}</span>
             </div>
@@ -234,17 +234,17 @@ export function TasksModal({
                     onClose();
                   }}
                 >
-                  {task.sourceNoteTitle?.trim() || "Untitled note"}
+                  {task.sourceNoteTitle?.trim() || "無題のメモ"}
                 </button>
               ) : (
-                <span className="inline-note">No source note</span>
+                <span className="inline-note">元メモなし</span>
               )}
               <button
                 type="button"
                 className="ghost-button danger-button"
                 onClick={() => void deleteTask(task.id)}
               >
-                Delete
+                削除
               </button>
             </div>
 
@@ -268,14 +268,14 @@ export function TasksModal({
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">Tasks</p>
-            <h2 id="tasks-modal-title">Task list</h2>
+            <p className="eyebrow">タスク</p>
+            <h2 id="tasks-modal-title">タスクリスト</h2>
             <p className="modal-description">
-              Track items separately from notes and jump back to the source note.
+              メモとは別にタスクを管理し、必要に応じて元のメモへ戻れます。
             </p>
           </div>
           <button type="button" className="ghost-button modal-close" onClick={onClose}>
-            Close
+            閉じる
           </button>
         </div>
 
@@ -286,7 +286,7 @@ export function TasksModal({
               type="text"
               value={newTaskTitle}
               onChange={(event) => setNewTaskTitle(event.target.value)}
-              placeholder="Add a task"
+              placeholder="タスクを入力"
             />
             <button
               type="button"
@@ -294,7 +294,7 @@ export function TasksModal({
               onClick={() => void handleCreateTask()}
               disabled={!newTaskTitle.trim() || isCreating}
             >
-              {isCreating ? "Adding..." : "Add task"}
+              {isCreating ? "追加中..." : "タスクを追加"}
             </button>
           </div>
           <label className="task-attach-toggle">
@@ -305,8 +305,8 @@ export function TasksModal({
               disabled={!currentNoteId}
             />
             <span>
-              Attach current note
-              {currentNoteId ? `: ${currentNoteTitle.trim() || "Untitled"}` : ""}
+              現在のメモを紐付ける
+              {currentNoteId ? `: ${currentNoteTitle.trim() || "無題"}` : ""}
             </span>
           </label>
           {initialSelectionText ? (
@@ -319,18 +319,18 @@ export function TasksModal({
         <div className="tasks-columns">
           <section className="modal-section">
             <div className="section-heading">
-              <h3>Open</h3>
-              <p>{openTasks.length} items</p>
+              <h3>未完了</h3>
+              <p>{openTasks.length} 件</p>
             </div>
-            {isLoading ? <div className="list-empty">Loading tasks...</div> : renderTaskList(openTasks)}
+            {isLoading ? <div className="list-empty">タスクを読み込み中...</div> : renderTaskList(openTasks)}
           </section>
 
           <section className="modal-section">
             <div className="section-heading">
-              <h3>Done</h3>
-              <p>{doneTasks.length} items</p>
+              <h3>完了</h3>
+              <p>{doneTasks.length} 件</p>
             </div>
-            {isLoading ? <div className="list-empty">Loading tasks...</div> : renderTaskList(doneTasks)}
+            {isLoading ? <div className="list-empty">タスクを読み込み中...</div> : renderTaskList(doneTasks)}
           </section>
         </div>
       </div>

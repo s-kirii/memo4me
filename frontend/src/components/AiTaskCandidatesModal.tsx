@@ -115,7 +115,7 @@ export function AiTaskCandidatesModal({
       onSaved?.(response.items);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "failed to save AI tasks",
+        error instanceof Error ? error.message : "AIタスクの保存に失敗しました",
       );
     } finally {
       setIsSaving(false);
@@ -133,16 +133,15 @@ export function AiTaskCandidatesModal({
       >
         <div className="modal-header">
           <div>
-            <p className="eyebrow">AI Tasks</p>
-            <h2 id="ai-task-candidates-title">Review AI task candidates</h2>
+            <p className="eyebrow">AIタスク</p>
+            <h2 id="ai-task-candidates-title">AI抽出タスクを確認</h2>
             <p className="modal-description">
-              AI extracted task candidates from{" "}
-              <strong>{noteTitle.trim() || "Untitled"}</strong>. Select the ones
-              you want to save into Tasks.
+              <strong>{noteTitle.trim() || "無題"}</strong>
+              から AI が抽出したタスク候補です。保存したいものを選んでください。
             </p>
           </div>
           <button type="button" className="ghost-button modal-close" onClick={onClose}>
-            Close
+            閉じる
           </button>
         </div>
 
@@ -158,16 +157,16 @@ export function AiTaskCandidatesModal({
             }
             disabled={!hasCandidates}
           >
-            {allSelected ? "Clear selection" : "Select all"}
+            {allSelected ? "選択解除" : "すべて選択"}
           </button>
           <span className="inline-note">
-            {selectedCount} / {candidates.length} selected
+            {selectedCount} / {candidates.length} 件を選択中
           </span>
         </div>
 
         <div className="task-candidate-list">
           {!hasCandidates ? (
-            <div className="list-empty">No clear AI task candidates were found.</div>
+            <div className="list-empty">明確なタスク候補は見つかりませんでした</div>
           ) : (
             selectableCandidates.map((candidate) => (
               <label key={candidate.id} className="task-candidate-card">
@@ -196,7 +195,7 @@ export function AiTaskCandidatesModal({
 
         <div className="modal-footer">
           <button type="button" className="ghost-button" onClick={onClose}>
-            Cancel
+            キャンセル
           </button>
           <button
             type="button"
@@ -204,7 +203,7 @@ export function AiTaskCandidatesModal({
             onClick={() => void handleSave()}
             disabled={isSaving || !hasCandidates}
           >
-            {isSaving ? "Saving..." : "Save selected to Tasks"}
+            {isSaving ? "保存中..." : "選択したタスクを保存"}
           </button>
         </div>
       </div>

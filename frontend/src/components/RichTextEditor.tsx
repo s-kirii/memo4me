@@ -16,7 +16,7 @@ type RichTextEditorProps = {
 
 export function RichTextEditor({
   value,
-  placeholder = "Write your note in Markdown...",
+  placeholder = "Markdownでメモを書いてください...",
   onChange,
   onSelectionChange,
 }: RichTextEditorProps) {
@@ -138,17 +138,17 @@ export function RichTextEditor({
           }`}
           onClick={handleToggleCodeBlock}
         >
-          Code Block
+          コードブロック
         </button>
 
         {currentEditorState.isCodeBlockActive ? (
           <label className="editor-language-select">
-            <span>Language</span>
+            <span>言語</span>
             <select
               value={currentEditorState.activeCodeLanguage}
               onChange={(event) => handleLanguageChange(event.target.value)}
             >
-              <option value="plaintext">Plain text</option>
+              <option value="plaintext">プレーンテキスト</option>
               <option value="python">Python</option>
               <option value="javascript">JavaScript</option>
               <option value="typescript">TypeScript</option>

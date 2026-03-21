@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-このドキュメントは、`memo4me` の `AI Settings` に入力する値を、各 AI provider でどう取得するかをまとめたものです。
+このドキュメントは、`memo4me` の `AI設定` に入力する値を、各 AI provider でどう取得するかをまとめたものです。
 
 対象:
 
@@ -18,7 +18,7 @@
 
 ## 2. memo4me で入力する項目
 
-`memo4me` の `AI Settings` では、provider ごとに主に次を入力します。
+`memo4me` の `AI設定` では、provider ごとに主に次を入力します。
 
 - `Provider`
 - `Endpoint` または `Base URL`
@@ -166,17 +166,17 @@
 
 ## 6. 設定後の確認手順
 
-1. `memo4me` の `AI Settings` を開きます
+1. `memo4me` の `AI設定` を開きます
 2. provider を選びます
 3. `Endpoint/Base URL`, `Model`, `API key` を入力します
-4. `Test connection` を押します
-5. 成功したら `Save AI settings` を押します
+4. `接続テスト` を押します
+5. 成功したら `設定を保存` を押します
 
 確認の優先順:
 
-- まず `Test connection`
-- 次に `Summary`
-- 次に `Action items`
+- まず `接続テスト`
+- 次に `要約`
+- 次に `タスク抽出`
 
 ## 7. よくある入力ミス
 

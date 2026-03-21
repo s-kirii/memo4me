@@ -49,50 +49,50 @@ type AiSettingsModalProps = {
 const PROVIDER_OPTIONS: ProviderOption[] = [
   {
     id: "openai_compatible",
-    label: "OpenAI-compatible",
-    endpointLabel: "Base URL",
+    label: "OpenAI互換",
+    endpointLabel: "接続先URL",
     endpointPlaceholder: "https://api.openai.com/v1",
-    modelLabel: "Model",
+    modelLabel: "モデル",
     modelPlaceholder: "gpt-4.1-mini",
     defaultEndpoint: "https://api.openai.com/v1",
     setupHint:
-      "Use this for OpenAI or other OpenAI-style providers. Base URL is prefilled.",
+      "OpenAI や OpenAI 形式の API を使うときの設定です。接続先URLは初期値が入っています。",
   },
   {
     id: "azure_openai",
     label: "Azure OpenAI",
-    endpointLabel: "Endpoint",
+    endpointLabel: "エンドポイント",
     endpointPlaceholder: "https://<resource>.openai.azure.com/openai/v1",
-    modelLabel: "Deployment / model",
+    modelLabel: "デプロイ名 / モデル",
     modelPlaceholder: "my-gpt-deployment",
     defaultEndpoint: "",
     setupHint:
-      "Azure requires your own resource endpoint and deployment/model name.",
+      "Azure OpenAI では、利用するリソースのエンドポイントとデプロイ名 / モデル名の入力が必要です。",
   },
   {
     id: "gemini",
     label: "Gemini",
-    endpointLabel: "Base URL",
+    endpointLabel: "接続先URL",
     endpointPlaceholder: "https://generativelanguage.googleapis.com/v1beta",
-    modelLabel: "Model",
+    modelLabel: "モデル",
     modelPlaceholder: "gemini-2.0-flash",
     defaultEndpoint: "https://generativelanguage.googleapis.com/v1beta",
     setupHint:
-      "Gemini uses the Google Generative Language endpoint. Base URL is prefilled.",
+      "Gemini は Google Generative Language の接続先を使います。接続先URLは初期値が入っています。",
   },
 ];
 
 function formatAiSettingsErrorMessage(message: string) {
   if (/api key is required/i.test(message)) {
-    return "API key が未設定です。AI Settings で API key を入力して保存してください。";
+    return "APIキーが未設定です。AI設定で APIキー を入力して保存してください。";
   }
 
   if (/model is required/i.test(message)) {
-    return "model が未設定です。AI Settings で model を入力してください。";
+    return "モデルが未設定です。AI設定でモデルを入力してください。";
   }
 
   if (/endpoint is required/i.test(message)) {
-    return "endpoint が未設定です。Azure OpenAI では endpoint の入力が必須です。";
+    return "エンドポイントが未設定です。Azure OpenAI ではエンドポイントの入力が必須です。";
   }
 
   return message;
@@ -153,7 +153,7 @@ function applySettingsToDrafts(settings: AiSettingsResponse) {
 
 function formatUpdatedAt(value: string | null) {
   if (!value) {
-    return "Never saved";
+    return "未保存";
   }
 
   const date = new Date(value);
@@ -218,7 +218,7 @@ export function AiSettingsModal({
         setErrorMessage(
           error instanceof Error
             ? formatAiSettingsErrorMessage(error.message)
-            : "failed to load AI settings",
+            : "AI設定の読み込みに失敗しました",
         );
       } finally {
         if (!cancelled) {
@@ -281,14 +281,14 @@ export function AiSettingsModal({
 
       setSettings(response);
       setDrafts(applySettingsToDrafts(response));
-      setSaveMessage("AI settings saved.");
+      setSaveMessage("AI設定を保存しました。");
       setTestMessage(null);
       setErrorMessage(null);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? formatAiSettingsErrorMessage(error.message)
-          : "failed to save AI settings",
+          : "AI設定の保存に失敗しました",
       );
     } finally {
       setIsSaving(false);
@@ -320,7 +320,7 @@ export function AiSettingsModal({
       setErrorMessage(
         error instanceof Error
           ? formatAiSettingsErrorMessage(error.message)
-          : "connection test failed",
+          : "接続テストに失敗しました",
       );
     } finally {
       setIsTesting(false);
@@ -339,25 +339,24 @@ export function AiSettingsModal({
         <div className="modal-header">
           <div>
             <p className="eyebrow">AI</p>
-            <h2 id="ai-settings-title">AI Settings</h2>
+            <h2 id="ai-settings-title">AI設定</h2>
             <p className="modal-description">
-              Configure local AI providers before enabling note summary and task
-              extraction features.
+              メモ要約やタスク抽出を使う前に、AIプロバイダの設定を行います。
             </p>
           </div>
           <button type="button" className="ghost-button modal-close" onClick={onClose}>
-            Close
+            閉じる
           </button>
         </div>
 
         {isLoading ? (
-          <div className="modal-loading">Loading AI settings...</div>
+          <div className="modal-loading">AI設定を読み込み中...</div>
         ) : (
           <>
             <section className="modal-section">
               <div className="section-heading">
-                <h3>Active provider</h3>
-                <p>Choose the provider used by upcoming AI actions by default.</p>
+                <h3>利用するプロバイダ</h3>
+                <p>今後の AI 実行で標準利用するプロバイダを選びます。</p>
               </div>
               <div className="provider-pill-row">
                 {PROVIDER_OPTIONS.map((option) => (
@@ -377,8 +376,8 @@ export function AiSettingsModal({
 
             <section className="modal-section">
               <div className="section-heading">
-                <h3>Provider configs</h3>
-                <p>Each provider keeps its own endpoint, model, and API key.</p>
+                <h3>プロバイダごとの設定</h3>
+                <p>各プロバイダごとに接続先、モデル、APIキーを設定できます。</p>
               </div>
               <div className="provider-tab-row">
                 {PROVIDER_OPTIONS.map((option) => (
@@ -398,8 +397,8 @@ export function AiSettingsModal({
                     <span>{option.label}</span>
                     <span className="provider-tab-meta">
                       {drafts[option.id].hasApiKey && !drafts[option.id].clearApiKey
-                        ? "key saved"
-                        : "not configured"}
+                        ? "キー保存済み"
+                        : "未設定"}
                     </span>
                   </button>
                 ))}
@@ -409,7 +408,7 @@ export function AiSettingsModal({
                 <div className="provider-form-head">
                   <div>
                     <h4>{selectedOption.label}</h4>
-                    <p>Last updated: {formatUpdatedAt(selectedDraft.updatedAt)}</p>
+                    <p>最終更新: {formatUpdatedAt(selectedDraft.updatedAt)}</p>
                     <p>{selectedOption.setupHint}</p>
                   </div>
                   <span
@@ -420,8 +419,8 @@ export function AiSettingsModal({
                     }`}
                   >
                     {selectedDraft.hasApiKey && !selectedDraft.clearApiKey
-                      ? "API key saved"
-                      : "API key missing"}
+                      ? "APIキー保存済み"
+                      : "APIキー未設定"}
                   </span>
                 </div>
 
@@ -452,7 +451,7 @@ export function AiSettingsModal({
                 </div>
 
                 <label className="field">
-                  <span>API key</span>
+                  <span>APIキー</span>
                   <input
                     type="password"
                     value={selectedDraft.apiKey}
@@ -464,8 +463,8 @@ export function AiSettingsModal({
                     }
                     placeholder={
                       selectedDraft.hasApiKey && !selectedDraft.clearApiKey
-                        ? "Saved locally. Enter only to replace."
-                        : "Paste a provider API key"
+                        ? "ローカルに保存済みです。置き換える場合だけ入力してください。"
+                        : "APIキーを入力してください"
                     }
                   />
                 </label>
@@ -484,7 +483,7 @@ export function AiSettingsModal({
                         })
                       }
                     >
-                      Clear saved key
+                      保存済みキーを削除
                     </button>
                   ) : null}
                 </div>
@@ -502,7 +501,7 @@ export function AiSettingsModal({
                 onClick={() => void handleTestConnection()}
                 disabled={isTesting || isSaving}
               >
-                {isTesting ? "Testing..." : "Test connection"}
+                {isTesting ? "接続確認中..." : "接続テスト"}
               </button>
               <button
                 type="button"
@@ -510,7 +509,7 @@ export function AiSettingsModal({
                 onClick={() => void handleSave()}
                 disabled={isSaving || isLoading}
               >
-                {isSaving ? "Saving..." : "Save AI settings"}
+                {isSaving ? "保存中..." : "設定を保存"}
               </button>
             </div>
           </>

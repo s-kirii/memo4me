@@ -45,7 +45,7 @@ type EditorDraft = {
 };
 
 function getDisplayTitle(title: string) {
-  return title.trim() || "Untitled";
+  return title.trim() || "無題";
 }
 
 function formatUpdatedAt(value: string) {
@@ -152,7 +152,7 @@ function App() {
         return response.items[0]?.id ?? null;
       });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "failed to load notes");
+      setErrorMessage(error instanceof Error ? error.message : "メモの読み込みに失敗しました");
     } finally {
       setIsListLoading(false);
     }
@@ -184,7 +184,7 @@ function App() {
       setErrorMessage(null);
     } catch (error) {
       setSelectedNote(null);
-      setErrorMessage(error instanceof Error ? error.message : "failed to load note");
+      setErrorMessage(error instanceof Error ? error.message : "メモの読み込みに失敗しました");
     } finally {
       setIsDetailLoading(false);
     }
@@ -281,7 +281,7 @@ function App() {
         setErrorMessage(null);
       } catch (error) {
         setSaveState("error");
-        setErrorMessage(error instanceof Error ? error.message : "failed to save note");
+        setErrorMessage(error instanceof Error ? error.message : "メモの保存に失敗しました");
       }
     }, 800);
 
@@ -306,7 +306,7 @@ function App() {
       await loadNotes({ preferredSelectedId: created.id });
       await loadTags();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "failed to create note");
+      setErrorMessage(error instanceof Error ? error.message : "メモの作成に失敗しました");
     }
   };
 
@@ -332,7 +332,7 @@ function App() {
       setTagInput("");
       setSaveState("idle");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "failed to delete note");
+      setErrorMessage(error instanceof Error ? error.message : "メモの削除に失敗しました");
     }
   };
 
@@ -366,7 +366,7 @@ function App() {
       }, 250);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "failed to shut down app",
+        error instanceof Error ? error.message : "アプリの終了に失敗しました",
       );
       setIsExiting(false);
     }
@@ -551,7 +551,7 @@ function App() {
     notes.length === 0 ? "最初のメモを作成してください" : "メモを選択してください";
   const emptyStateBody =
     notes.length === 0
-      ? "左側の New Note から新しいメモを作ると、ここにタイトル入力欄と本文エリアが表示されます。"
+      ? "左側の「新規メモ」から新しいメモを作ると、ここにタイトル入力欄と本文エリアが表示されます。"
       : "左側の一覧からメモを選択すると、ここに内容が表示されます。";
 
   const openTasksWithSelection = () => {
@@ -566,43 +566,33 @@ function App() {
       <header className="app-header">
         <div>
           <p className="eyebrow">memo4me</p>
-          <h1>Local-first note workspace</h1>
         </div>
         <div className="header-actions">
-          <button
-            type="button"
-            className="ghost-button danger-button"
-            onClick={() => void handleExitApp()}
-            disabled={isExiting}
-          >
-            {isExiting ? "Exiting..." : "Exit"}
-          </button>
           <button
             type="button"
             className="ghost-button"
             onClick={() => setIsTasksOpen(true)}
           >
-            Tasks
+            タスク
           </button>
           <button
             type="button"
             className="ghost-button"
             onClick={() => setIsAiSettingsOpen(true)}
           >
-            AI Settings
+            AI設定
           </button>
           <button className="primary-button" onClick={() => void handleCreateNote()}>
-            New Note
+            新規メモ
           </button>
-          <label className="search-input">
-            <span>Search</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search notes, tags, text"
-            />
-          </label>
+          <button
+            type="button"
+            className="ghost-button danger-button"
+            onClick={() => void handleExitApp()}
+            disabled={isExiting}
+          >
+            {isExiting ? "終了中..." : "終了"}
+          </button>
         </div>
       </header>
 
@@ -610,30 +600,39 @@ function App() {
         <aside className="sidebar">
           <section className="sidebar-section">
             <div className="sidebar-section-header">
-              <h2>Filters</h2>
+              <h2>絞り込み</h2>
             </div>
             <div className="filter-stack">
+              <div className="field search-field">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="メモ・タグ・本文を検索"
+                />
+              </div>
+
               <label className="field">
-                <span>Sort</span>
+                <span>並び順</span>
                 <select
                   value={sort}
                   onChange={(event) => setSort(event.target.value)}
                 >
-                  <option value="updated_desc">Updated desc</option>
-                  <option value="updated_asc">Updated asc</option>
-                  <option value="title_asc">Title asc</option>
+                  <option value="updated_desc">更新日が新しい順</option>
+                  <option value="updated_asc">更新日が古い順</option>
+                  <option value="title_asc">タイトル順</option>
                 </select>
               </label>
 
               <div className="field">
-                <span>Tags</span>
+                <span>タグ</span>
                 <div className="tag-list">
                   <button
                     className={`tag-chip${selectedTagFilter === null ? " is-active" : ""}`}
                     type="button"
                     onClick={() => setSelectedTagFilter(null)}
                   >
-                    All
+                    すべて
                   </button>
                   {availableFilterTags.map((tag) => (
                     <button
@@ -658,13 +657,13 @@ function App() {
 
           <section className="sidebar-section note-list-section">
             <div className="sidebar-section-header">
-              <h2>Notes</h2>
+              <h2>メモ</h2>
               <span>{notes.length}</span>
             </div>
 
             <div className="note-list">
               {isListLoading ? (
-                <div className="list-empty">Loading notes...</div>
+                <div className="list-empty">メモを読み込み中...</div>
               ) : notes.length === 0 ? (
                 <div className="list-empty">一致するメモはありません</div>
               ) : (
@@ -681,11 +680,11 @@ function App() {
                       {getDisplayTitle(note.title)}
                     </div>
                     <div className="note-list-item-excerpt">
-                      {note.excerpt || "No content"}
+                      {note.excerpt || "内容なし"}
                     </div>
                     <div className="note-list-item-meta">
                       <span>{formatUpdatedAt(note.updatedAt)}</span>
-                      <span>{note.tags[0] ?? "untagged"}</span>
+                      <span>{note.tags[0] ?? "タグなし"}</span>
                     </div>
                   </button>
                 ))
@@ -698,7 +697,7 @@ function App() {
           {showEmptyState ? (
             <div className="empty-state">
               <p className="empty-state-label">
-                {notes.length === 0 ? "No notes yet" : "No note selected"}
+                {notes.length === 0 ? "まだメモがありません" : "メモが選択されていません"}
               </p>
               <h2>{emptyStateTitle}</h2>
               <p>{emptyStateBody}</p>
@@ -707,11 +706,11 @@ function App() {
             <>
               <div className="editor-meta">
                 <div>
-                  <p className="eyebrow">Focused note</p>
+                  <p className="eyebrow">選択中のメモ</p>
                   <p className="updated-at">
                     {isDetailLoading
-                      ? "Loading..."
-                      : `Updated ${formatUpdatedAt(selectedNote.updatedAt)}`}
+                      ? "読み込み中..."
+                      : `更新 ${formatUpdatedAt(selectedNote.updatedAt)}`}
                   </p>
                 </div>
                 <div className="editor-meta-actions">
@@ -721,7 +720,7 @@ function App() {
                       className="ghost-button"
                       onClick={openTasksWithSelection}
                     >
-                      Add Selection to Tasks
+                      選択範囲をタスク化
                     </button>
                   ) : null}
                   <button
@@ -732,23 +731,23 @@ function App() {
                     AI
                   </button>
                   <span className={`save-status is-${saveState}`}>
-                    {saveState === "saving" && "Saving..."}
-                    {saveState === "saved" && "Saved"}
-                    {saveState === "error" && "Save failed"}
-                    {saveState === "idle" && "Ready"}
+                    {saveState === "saving" && "保存中..."}
+                    {saveState === "saved" && "保存済み"}
+                    {saveState === "error" && "保存失敗"}
+                    {saveState === "idle" && "準備完了"}
                   </span>
                   <button
                     type="button"
                     className="ghost-button danger-button"
                     onClick={() => void handleDeleteNote()}
                   >
-                    Delete
+                    削除
                   </button>
                 </div>
               </div>
 
               <label className="title-field">
-                <span className="visually-hidden">Title</span>
+                <span className="visually-hidden">タイトル</span>
                 <input
                   type="text"
                   value={draft.title}
@@ -758,13 +757,13 @@ function App() {
                       title: event.target.value,
                     }))
                   }
-                  placeholder="Untitled"
+                  placeholder="無題"
                 />
               </label>
 
               <div className="note-tags note-tags-editor">
                 {draft.tags.length === 0 ? (
-                  <span className="tag-pill is-muted">untagged</span>
+                  <span className="tag-pill is-muted">タグなし</span>
                 ) : (
                   draft.tags.map((tag) => (
                     <span key={tag} className="tag-pill tag-pill-editable">
@@ -773,7 +772,7 @@ function App() {
                         type="button"
                         className="tag-remove-button"
                         onClick={() => handleRemoveTag(tag)}
-                        aria-label={`Remove ${tag}`}
+                        aria-label={`タグ「${tag}」を削除`}
                       >
                         x
                       </button>
@@ -782,7 +781,7 @@ function App() {
                 )}
 
                 <label className="tag-input">
-                  <span className="visually-hidden">Add tag</span>
+                  <span className="visually-hidden">タグを追加</span>
                   <div
                     ref={tagInputShellRef}
                     className="tag-input-shell"
@@ -796,7 +795,7 @@ function App() {
                         setTagInput(event.target.value);
                       }}
                       onKeyDown={handleTagInputKeyDown}
-                      placeholder="Add tag"
+                      placeholder="タグを追加"
                     />
                     {showTagSuggestions ? (
                       <div className="tag-suggestion-list" role="listbox">
@@ -831,12 +830,12 @@ function App() {
                   className="ghost-button tag-add-button"
                   onClick={handleAddTag}
                 >
-                  Add Tag
+                  タグを追加
                 </button>
               </div>
 
               <div className="editor-divider">
-                <span>Body</span>
+                <span>本文</span>
               </div>
 
               <div className="editor-body">
@@ -860,7 +859,7 @@ function App() {
 
       {exitMessage ? (
         <div className="exit-banner" role="status">
-          <strong>App stopped.</strong> {exitMessage}
+          <strong>アプリを終了しました。</strong> {exitMessage}
         </div>
       ) : null}
 

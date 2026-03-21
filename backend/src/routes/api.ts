@@ -220,7 +220,7 @@ export function createApiRouter(
   router.post("/app/shutdown", (_req, res) => {
     res.json({
       ok: true as const,
-      message: "memo4me is shutting down. Please close this tab.",
+      message: "memo4me を終了しています。このタブを閉じてください。",
     });
 
     if (onShutdown) {

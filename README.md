@@ -101,19 +101,19 @@ Chrome が見つからない場合は起動失敗になる。
 
 現状は、AI の実行基盤と初期 UI まで入っている。
 
-- Header の `AI Settings` から provider 設定を開ける
-- 右ペイン上部の `AI` から AI Assistant モーダルを開ける
-- Header の `Tasks` からタスクリストモーダルを開ける
-- Header の `Exit` から本番起動中のアプリ全体を終了できる
-- `Summary` / `Structure` / `Action items` / `Quick prompt` を実行できる
+- Header の `AI設定` から provider 設定を開ける
+- 右ペイン上部の `AI` から AIアシスタント モーダルを開ける
+- Header の `タスク` からタスクリストモーダルを開ける
+- Header の `終了` から本番起動中のアプリ全体を終了できる
+- `要約` / `構造化` / `タスク抽出` / `自由入力` を実行できる
 - 結果はメモ単位で履歴保存される
-- `Action items` 実行後は AI task candidates を確認して選択保存できる
-- AI 保存タスクは `Tasks` モーダルで `AI` バッジ付きで表示される
+- `タスク抽出` 実行後は AI のタスク候補を確認して選択保存できる
+- AI 保存タスクは `タスク` モーダルで `AI` バッジ付きで表示される
 
 補足:
 
 - 実行には API キー設定が必要
-- 対応 provider は `OpenAI-compatible` / `Azure OpenAI` / `Gemini`
+- 対応 provider は `OpenAI互換` / `Azure OpenAI` / `Gemini`
 - タスクリストは独立モーダルとして追加済み
 - 各 provider の key / endpoint / model の取得方法は [AI Provider 設定ガイド](/xxxxx/memo4me/doc/ai-provider-setup.md) を参照
 
@@ -140,7 +140,7 @@ Chrome が見つからない場合は起動失敗になる。
 
 まず初回は `install-*` を実行し、その後 `start-*` で起動する。
 
-本番起動後は、画面上部の `Exit` を押すとアプリを安全終了できる。終了後、タブは自動で閉じない場合があるため、その場合は画面の案内に従って手動で閉じる。
+本番起動後は、画面上部の `終了` を押すとアプリを安全終了できる。終了後、タブは自動で閉じない場合があるため、その場合は画面の案内に従って手動で閉じる。
 
 ## GitHub 配布の最小構成
 

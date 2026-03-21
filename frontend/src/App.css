@@ -45,6 +45,17 @@
   color: #fff8ee;
 }
 
+.ghost-button {
+  min-height: 38px;
+  border: 1px solid rgba(62, 41, 25, 0.14);
+  background: rgba(255, 250, 243, 0.9);
+  color: #241b12;
+}
+
+.danger-button {
+  color: #8a2f2a;
+}
+
 .primary-button:hover {
   border-color: #241b12;
   background: #38291c;
@@ -236,6 +247,12 @@
   gap: 12px;
 }
 
+.editor-meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .updated-at {
   margin: 4px 0 0;
   color: #6a513e;
@@ -290,27 +307,37 @@
   color: #7a4f22;
 }
 
-.editor-surface {
+.tag-pill.is-muted {
+  background: rgba(62, 41, 25, 0.08);
+  color: #6a513e;
+}
+
+.editor-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-top: 18px;
-  min-height: 360px;
-  padding: 18px;
-  border: 1px dashed rgba(62, 41, 25, 0.18);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.58);
-}
-
-.editor-surface h2 {
-  margin: 8px 0 10px;
-  font-size: 1.35rem;
-}
-
-.editor-placeholder-label {
-  margin: 0;
   color: #8c6240;
-  font-size: 0.76rem;
+}
+
+.editor-divider::before,
+.editor-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(140, 98, 64, 0.2);
+}
+
+.editor-divider span {
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.editor-body {
+  margin-top: 16px;
+  padding-top: 4px;
 }
 
 .editor-placeholder-card {
@@ -319,6 +346,114 @@
   border-radius: 16px;
   background: #f5ebdb;
   color: #533d2c;
+}
+
+.tiptap-editor {
+  min-height: 280px;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #241b12;
+  line-height: 1.7;
+  outline: none;
+  white-space: pre-wrap;
+}
+
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9f8875;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.tiptap-editor > *:first-child {
+  margin-top: 0;
+}
+
+.tiptap-editor > *:last-child {
+  margin-bottom: 0;
+}
+
+.tiptap-editor h1,
+.tiptap-editor h2,
+.tiptap-editor h3 {
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+
+.tiptap-editor h1 {
+  margin: 1.1em 0 0.55em;
+  font-size: 1.6rem;
+}
+
+.tiptap-editor h2 {
+  margin: 1em 0 0.5em;
+  font-size: 1.35rem;
+}
+
+.tiptap-editor h3 {
+  margin: 0.95em 0 0.45em;
+  font-size: 1.15rem;
+}
+
+.tiptap-editor p {
+  margin: 0.45em 0;
+}
+
+.tiptap-editor ul,
+.tiptap-editor ol {
+  margin: 0.55em 0;
+  padding-left: 1.4em;
+}
+
+.tiptap-editor blockquote {
+  margin: 0.9em 0;
+  padding-left: 0.9em;
+  border-left: 3px solid rgba(140, 98, 64, 0.36);
+  color: #5f4b3d;
+}
+
+.tiptap-editor hr {
+  margin: 1em 0;
+  border: 0;
+  border-top: 1px solid rgba(62, 41, 25, 0.16);
+}
+
+.tiptap-editor pre {
+  margin: 0.9em 0;
+  padding: 14px;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: #241b12;
+  color: #fff8ee;
+}
+
+.tiptap-editor code {
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  font-size: 0.92em;
+}
+
+.tiptap-editor p code {
+  padding: 0.12em 0.35em;
+  border-radius: 6px;
+  background: rgba(36, 27, 18, 0.08);
+}
+
+.tiptap-editor a {
+  color: #8c6240;
+  text-decoration: underline;
+}
+
+.error-banner {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(166, 74, 65, 0.12);
+  color: #872d28;
+  font-size: 0.9rem;
 }
 
 .empty-state {

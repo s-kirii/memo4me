@@ -31,11 +31,11 @@ Core characteristics:
 
 When starting work, read in this order.
 
-1. This file: [AGENT.md](/xxxxx/memo4me/AGENT.md)
-2. High-level design: [design.md](/xxxxx/memo4me/doc/design.md)
-3. Detailed design: [detail-design.md](/xxxxx/memo4me/doc/detail-design.md)
-4. Current execution status: [tasklist.md](/xxxxx/memo4me/doc/tasklist.md)
-5. Developer setup and run commands: [README.md](/xxxxx/memo4me/README.md)
+1. This file: [AGENT.md](./AGENT.md)
+2. High-level design: [design.md](./doc/design.md)
+3. Detailed design: [detail-design.md](./doc/detail-design.md)
+4. Current execution status: [tasklist.md](./doc/tasklist.md)
+5. Developer setup and run commands: [README.md](./README.md)
 
 Then inspect implementation files relevant to the task.
 
@@ -56,7 +56,7 @@ At the time this file was written, the following areas are already implemented.
 - Markdown save/restore flow
 - code block language selection and syntax highlighting
 - delete confirmation
-- development launcher script: [dev.sh](/xxxxx/memo4me/dev.sh)
+- development launcher script: [dev.sh](./dev.sh)
 - AI settings modal and provider configuration API
 - provider adapter foundation for OpenAI-compatible / Azure OpenAI / Gemini
 - macOS Keychain / Windows DPAPI based AI key storage foundation
@@ -72,15 +72,15 @@ Important known remaining areas:
 - task list feature set
 - Windows real-machine distribution verification
 
-Always verify the latest state in [tasklist.md](/xxxxx/memo4me/doc/tasklist.md) before changing code.
+Always verify the latest state in [tasklist.md](./doc/tasklist.md) before changing code.
 
 ## Source of Truth
 
 Use these documents with the following priority.
 
-- Product direction and scope: [design.md](/xxxxx/memo4me/doc/design.md)
-- Detailed behavior and architecture: [detail-design.md](/xxxxx/memo4me/doc/detail-design.md)
-- Execution status and next implementation steps: [tasklist.md](/xxxxx/memo4me/doc/tasklist.md)
+- Product direction and scope: [design.md](./doc/design.md)
+- Detailed behavior and architecture: [detail-design.md](./doc/detail-design.md)
+- Execution status and next implementation steps: [tasklist.md](./doc/tasklist.md)
 - Actual implementation truth for edge cases: codebase
 
 If code and docs differ:
@@ -106,28 +106,28 @@ These decisions are already settled unless the user explicitly changes them.
 
 Key files and responsibilities:
 
-- App shell and main UI: [App.tsx](/xxxxx/memo4me/frontend/src/App.tsx)
-- Main frontend styling: [App.css](/xxxxx/memo4me/frontend/src/App.css)
-- AI assistant modal: [AiAssistantModal.tsx](/xxxxx/memo4me/frontend/src/components/AiAssistantModal.tsx)
-- AI task candidate modal: [AiTaskCandidatesModal.tsx](/xxxxx/memo4me/frontend/src/components/AiTaskCandidatesModal.tsx)
-- tasks modal: [TasksModal.tsx](/xxxxx/memo4me/frontend/src/components/TasksModal.tsx)
-- AI settings modal: [AiSettingsModal.tsx](/xxxxx/memo4me/frontend/src/components/AiSettingsModal.tsx)
-- Rich editor component: [RichTextEditor.tsx](/xxxxx/memo4me/frontend/src/components/RichTextEditor.tsx)
-- Markdown conversion helpers: [markdown.ts](/xxxxx/memo4me/frontend/src/lib/markdown.ts)
-- API routes: [api.ts](/xxxxx/memo4me/backend/src/routes/api.ts)
-- AI settings service: [ai-settings-service.ts](/xxxxx/memo4me/backend/src/services/ai-settings-service.ts)
-- AI execution service: [ai-execution-service.ts](/xxxxx/memo4me/backend/src/services/ai-execution-service.ts)
-- task service: [task-service.ts](/xxxxx/memo4me/backend/src/services/task-service.ts)
-- Domain/service layer: [note-service.ts](/xxxxx/memo4me/backend/src/services/note-service.ts)
-- Note repository: [note-repository.ts](/xxxxx/memo4me/backend/src/repositories/note-repository.ts)
-- AI settings repository: [ai-settings-repository.ts](/xxxxx/memo4me/backend/src/repositories/ai-settings-repository.ts)
-- AI output repository: [ai-output-repository.ts](/xxxxx/memo4me/backend/src/repositories/ai-output-repository.ts)
-- task repository: [task-repository.ts](/xxxxx/memo4me/backend/src/repositories/task-repository.ts)
-- Tag repository: [tag-repository.ts](/xxxxx/memo4me/backend/src/repositories/tag-repository.ts)
-- AI provider adapters: [provider-adapters.ts](/xxxxx/memo4me/backend/src/ai/provider-adapters.ts)
-- AI prompt templates: [prompt-templates.ts](/xxxxx/memo4me/backend/src/ai/prompt-templates.ts)
-- AI secret storage abstraction: [platform-secret-store.ts](/xxxxx/memo4me/backend/src/ai/platform-secret-store.ts)
-- Initial DB schema: [001_init.sql](/xxxxx/memo4me/backend/migrations/001_init.sql)
+- App shell and main UI: [App.tsx](./frontend/src/App.tsx)
+- Main frontend styling: [App.css](./frontend/src/App.css)
+- AI assistant modal: [AiAssistantModal.tsx](./frontend/src/components/AiAssistantModal.tsx)
+- AI task candidate modal: [AiTaskCandidatesModal.tsx](./frontend/src/components/AiTaskCandidatesModal.tsx)
+- tasks modal: [TasksModal.tsx](./frontend/src/components/TasksModal.tsx)
+- AI settings modal: [AiSettingsModal.tsx](./frontend/src/components/AiSettingsModal.tsx)
+- Rich editor component: [RichTextEditor.tsx](./frontend/src/components/RichTextEditor.tsx)
+- Markdown conversion helpers: [markdown.ts](./frontend/src/lib/markdown.ts)
+- API routes: [api.ts](./backend/src/routes/api.ts)
+- AI settings service: [ai-settings-service.ts](./backend/src/services/ai-settings-service.ts)
+- AI execution service: [ai-execution-service.ts](./backend/src/services/ai-execution-service.ts)
+- task service: [task-service.ts](./backend/src/services/task-service.ts)
+- Domain/service layer: [note-service.ts](./backend/src/services/note-service.ts)
+- Note repository: [note-repository.ts](./backend/src/repositories/note-repository.ts)
+- AI settings repository: [ai-settings-repository.ts](./backend/src/repositories/ai-settings-repository.ts)
+- AI output repository: [ai-output-repository.ts](./backend/src/repositories/ai-output-repository.ts)
+- task repository: [task-repository.ts](./backend/src/repositories/task-repository.ts)
+- Tag repository: [tag-repository.ts](./backend/src/repositories/tag-repository.ts)
+- AI provider adapters: [provider-adapters.ts](./backend/src/ai/provider-adapters.ts)
+- AI prompt templates: [prompt-templates.ts](./backend/src/ai/prompt-templates.ts)
+- AI secret storage abstraction: [platform-secret-store.ts](./backend/src/ai/platform-secret-store.ts)
+- Initial DB schema: [001_init.sql](./backend/migrations/001_init.sql)
 
 ## Working Rules
 
@@ -147,11 +147,11 @@ When modifying the project:
 For implementation work, follow this sequence.
 
 1. Read the relevant docs and current code.
-2. Confirm the current state in [tasklist.md](/xxxxx/memo4me/doc/tasklist.md).
+2. Confirm the current state in [tasklist.md](./doc/tasklist.md).
 3. Make the smallest coherent change that completes the task end-to-end.
 4. Run self-checks.
 5. Update documentation if the task changed behavior, architecture, workflow, or status.
-6. Update [tasklist.md](/xxxxx/memo4me/doc/tasklist.md) checkboxes only after verification.
+6. Update [tasklist.md](./doc/tasklist.md) checkboxes only after verification.
 7. If the task created non-committable files, verify they are ignored before finishing.
 
 For investigation work:
@@ -235,19 +235,19 @@ Update docs when the task changes any of the following:
 Which docs to update:
 
 - high-level direction changed:
-  - [design.md](/xxxxx/memo4me/doc/design.md)
+  - [design.md](./doc/design.md)
 - detailed behavior or architecture changed:
-  - [detail-design.md](/xxxxx/memo4me/doc/detail-design.md)
+  - [detail-design.md](./doc/detail-design.md)
 - execution progress changed:
-  - [tasklist.md](/xxxxx/memo4me/doc/tasklist.md)
+  - [tasklist.md](./doc/tasklist.md)
 - setup or run steps changed:
-  - [README.md](/xxxxx/memo4me/README.md)
+  - [README.md](./README.md)
 
 Do not bulk-rewrite docs unnecessarily. Keep updates targeted to the changed behavior.
 
 ## Tasklist Handling
 
-[tasklist.md](/xxxxx/memo4me/doc/tasklist.md) is used as the execution tracker even though it may be gitignored for local workflow reasons.
+[tasklist.md](./doc/tasklist.md) is used as the execution tracker even though it may be gitignored for local workflow reasons.
 
 Rules:
 
@@ -272,8 +272,8 @@ Rules:
 
 Use this quick path:
 
-1. read [design.md](/xxxxx/memo4me/doc/design.md)
-2. read sections for the relevant feature in [detail-design.md](/xxxxx/memo4me/doc/detail-design.md)
-3. read the matching phase in [tasklist.md](/xxxxx/memo4me/doc/tasklist.md)
+1. read [design.md](./doc/design.md)
+2. read sections for the relevant feature in [detail-design.md](./doc/detail-design.md)
+3. read the matching phase in [tasklist.md](./doc/tasklist.md)
 4. inspect the closest implementation file
 5. verify before editing

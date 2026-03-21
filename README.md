@@ -4,11 +4,11 @@
 
 設計資料:
 
-- [基本設計](/xxxxx/memo4me/doc/design.md)
-- [詳細設計](/xxxxx/memo4me/doc/detail-design.md)
-- [利用ガイド](/xxxxx/memo4me/doc/user-guide.md)
-- [AI Provider 設定ガイド](/xxxxx/memo4me/doc/ai-provider-setup.md)
-- [リリース運用ガイド](/xxxxx/memo4me/doc/release-guide.md)
+- [基本設計](./doc/design.md)
+- [詳細設計](./doc/detail-design.md)
+- [利用ガイド](./doc/user-guide.md)
+- [AI Provider 設定ガイド](./doc/ai-provider-setup.md)
+- [リリース運用ガイド](./doc/release-guide.md)
 
 ## 開発構成
 
@@ -116,7 +116,7 @@ Chrome が見つからない場合は起動失敗になる。
 - 実行には API キー設定が必要
 - 対応 provider は `OpenAI互換` / `Azure OpenAI` / `Gemini`
 - タスクリストは独立モーダルとして追加済み
-- 各 provider の key / endpoint / model の取得方法は [AI Provider 設定ガイド](/xxxxx/memo4me/doc/ai-provider-setup.md) を参照
+- 各 provider の key / endpoint / model の取得方法は [AI Provider 設定ガイド](./doc/ai-provider-setup.md) を参照
 
 ## ダブルクリック起動用ランチャー
 

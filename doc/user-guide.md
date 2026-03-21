@@ -234,7 +234,7 @@ http://127.0.0.1:8787/api/health
 
 provider ごとの key / エンドポイント / モデル の取得方法は、次のガイドを参照してください。
 
-- [AI Provider 設定ガイド](/xxxxx/memo4me/doc/ai-provider-setup.md)
+- [AI Provider 設定ガイド](./ai-provider-setup.md)
 
 ### 9.3 API キーについて
 

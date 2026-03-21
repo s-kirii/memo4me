@@ -2,7 +2,7 @@
 
 ## 1. このドキュメントの目的
 
-本書は、[design.md](/xxxxx/memo4me/doc/design.md) を前提に、実装者が解釈で迷わずに着手できる粒度まで仕様を具体化することを目的とする。
+本書は、[design.md](./design.md) を前提に、実装者が解釈で迷わずに着手できる粒度まで仕様を具体化することを目的とする。
 
 本書では以下を定義する。
 
@@ -45,7 +45,7 @@
 
 ### 3.1 参照資料
 
-- [design.md](/xxxxx/memo4me/doc/design.md)
+- [design.md](./design.md)
 
 ### 3.2 前提
 
@@ -1356,7 +1356,7 @@ README または配布資料には以下を明記する。
 
 ## 18. 実装タスク分解
 
-実行順の詳細は [tasklist.md](/xxxxx/memo4me/doc/tasklist.md) を正本とする。
+実行順の詳細は [tasklist.md](./tasklist.md) を正本とする。
 
 本書では要点のみ整理する。
 

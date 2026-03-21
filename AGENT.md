@@ -120,6 +120,7 @@ When modifying the project:
 - keep UX aligned with "simple Notion-like editing", not full Notion parity
 - avoid introducing server, auth, or multi-user assumptions
 - avoid changing persistence format away from Markdown unless the user explicitly approves it
+- if your work creates local-only data or generated artifacts that should not be committed, update `.gitignore` in the same task
 
 ## Task Workflow
 
@@ -131,6 +132,7 @@ For implementation work, follow this sequence.
 4. Run self-checks.
 5. Update documentation if the task changed behavior, architecture, workflow, or status.
 6. Update [tasklist.md](/xxxxx/memo4me/doc/tasklist.md) checkboxes only after verification.
+7. If the task created non-committable files, verify they are ignored before finishing.
 
 For investigation work:
 
@@ -150,6 +152,7 @@ A coding task is complete only when all of the following are true.
 - self-checks were performed against the changed behavior
 - related docs are updated if behavior or architecture changed
 - related tasklist items are checked only if the work is truly complete
+- local DB files, env files, logs, build outputs, and other non-committable artifacts are not left tracked by Git
 
 ### For Investigation Tasks
 
@@ -232,6 +235,7 @@ Rules:
 - if the current task is missing, add it in the appropriate phase before or during work
 - only check items after self-checking
 - if implementation reveals a bad phase split, adjust the tasklist to reflect reality
+- if the work introduces new local files that should stay untracked, add ignore rules immediately
 
 ## Common Pitfalls
 
@@ -242,6 +246,7 @@ Rules:
 - breaking Markdown round-tripping while changing editor behavior
 - changing tag semantics without checking normalization and reuse behavior
 - treating Chrome as optional for launch behavior
+- creating local DB files, env files, logs, build outputs, or temporary artifacts without updating `.gitignore`
 
 ## If You Need a Fast Catch-Up
 

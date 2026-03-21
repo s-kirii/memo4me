@@ -36,6 +36,7 @@ type ProviderOption = {
   endpointPlaceholder: string;
   modelLabel: string;
   modelPlaceholder: string;
+  defaultEndpoint: string;
 };
 
 type AiSettingsModalProps = {
@@ -52,6 +53,7 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
     endpointPlaceholder: "https://api.openai.com/v1",
     modelLabel: "Model",
     modelPlaceholder: "gpt-4.1-mini",
+    defaultEndpoint: "https://api.openai.com/v1",
   },
   {
     id: "azure_openai",
@@ -60,6 +62,7 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
     endpointPlaceholder: "https://<resource>.openai.azure.com/openai/v1",
     modelLabel: "Deployment / model",
     modelPlaceholder: "my-gpt-deployment",
+    defaultEndpoint: "",
   },
   {
     id: "gemini",
@@ -68,13 +71,18 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
     endpointPlaceholder: "https://generativelanguage.googleapis.com/v1beta",
     modelLabel: "Model",
     modelPlaceholder: "gemini-2.0-flash",
+    defaultEndpoint: "https://generativelanguage.googleapis.com/v1beta",
   },
 ];
 
 function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
+  const byId = Object.fromEntries(
+    PROVIDER_OPTIONS.map((option) => [option.id, option]),
+  ) as Record<AiProviderId, ProviderOption>;
+
   return {
     openai_compatible: {
-      endpoint: "",
+      endpoint: byId.openai_compatible.defaultEndpoint,
       model: "",
       apiKey: "",
       hasApiKey: false,
@@ -82,7 +90,7 @@ function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
       updatedAt: null,
     },
     azure_openai: {
-      endpoint: "",
+      endpoint: byId.azure_openai.defaultEndpoint,
       model: "",
       apiKey: "",
       hasApiKey: false,
@@ -90,7 +98,7 @@ function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
       updatedAt: null,
     },
     gemini: {
-      endpoint: "",
+      endpoint: byId.gemini.defaultEndpoint,
       model: "",
       apiKey: "",
       hasApiKey: false,
@@ -102,10 +110,13 @@ function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
 
 function applySettingsToDrafts(settings: AiSettingsResponse) {
   const nextDrafts = createEmptyDraft();
+  const defaultsById = Object.fromEntries(
+    PROVIDER_OPTIONS.map((option) => [option.id, option.defaultEndpoint]),
+  ) as Record<AiProviderId, string>;
 
   for (const providerConfig of settings.providers) {
     nextDrafts[providerConfig.provider] = {
-      endpoint: providerConfig.endpoint,
+      endpoint: providerConfig.endpoint || defaultsById[providerConfig.provider],
       model: providerConfig.model,
       apiKey: "",
       hasApiKey: providerConfig.hasApiKey,

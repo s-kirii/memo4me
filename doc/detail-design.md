@@ -701,6 +701,8 @@ UI:
 - `apiKey` を送ったときだけ保存済みキーを更新する
 - `clearApiKey=true` で保存済みキーを削除する
 - macOS は Keychain、Windows は DPAPI 保護を利用する
+- OpenAI / Gemini は UI 上で既定 endpoint を初期表示してよい
+- Azure OpenAI はユーザー環境依存のため endpoint 手入力前提とする
 
 ### 9.12 `POST /api/ai/settings/test`
 

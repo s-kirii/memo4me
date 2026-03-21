@@ -1,10 +1,14 @@
+import { config } from "./config";
+import { createDatabase } from "./db/database";
+import { runMigrations } from "./db/migrate";
 import { createApp } from "./app";
 
-const port = Number(process.env.PORT ?? 8787);
-const host = process.env.HOST ?? "127.0.0.1";
+const db = createDatabase();
+runMigrations(db);
 
-const app = createApp();
+const app = createApp(db);
 
-app.listen(port, host, () => {
-  console.log(`memo4me backend listening on http://${host}:${port}`);
+app.listen(config.port, config.host, () => {
+  console.log(`memo4me backend listening on http://${config.host}:${config.port}`);
+  console.log(`memo4me database path: ${config.dbPath}`);
 });

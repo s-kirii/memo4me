@@ -1,0 +1,1160 @@
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+
+type TaskStatus = "open" | "in_progress" | "done";
+type TaskOrigin = "manual" | "ai";
+type TaskSortKey = "updated_desc" | "due_asc" | "title_asc";
+
+type TaskItem = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  tags: string[];
+  startTargetDate: string | null;
+  dueDate: string | null;
+  noteText: string | null;
+  sourceNoteId: string | null;
+  sourceNoteTitle: string | null;
+  sourceSelectionText: string | null;
+  createdBy: TaskOrigin;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type NoteOption = {
+  id: string;
+  title: string;
+};
+
+type TaskWorkspaceProps = {
+  isActive: boolean;
+  currentNoteId: string | null;
+  currentNoteTitle: string;
+  currentNoteTags: string[];
+  initialDraftTitle?: string;
+  initialSelectionText?: string;
+  createRequestKey: number;
+  onConsumePrefill: () => void;
+  onOpenNote: (noteId: string) => void;
+  request: <T>(path: string, init?: RequestInit) => Promise<T>;
+};
+
+type FireForecastLevel = "safe" | "watch" | "risk";
+
+function normalizeTag(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatDateLabel(value: string | null) {
+  if (!value) {
+    return "期日なし";
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function getDueState(value: string | null) {
+  if (!value) {
+    return "none" as const;
+  }
+
+  const dueDate = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(dueDate.getTime())) {
+    return "none" as const;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (dueDate.getTime() < today.getTime()) {
+    return "overdue" as const;
+  }
+
+  if (dueDate.getTime() === today.getTime()) {
+    return "today" as const;
+  }
+
+  return "upcoming" as const;
+}
+
+function getStartTargetState(value: string | null, status: TaskStatus) {
+  if (!value || status !== "open") {
+    return "none" as const;
+  }
+
+  const targetDate = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(targetDate.getTime())) {
+    return "none" as const;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return targetDate.getTime() < today.getTime() ? "late" : "none";
+}
+
+function getForecastLevel(input: {
+  overdueCount: number;
+  dueTodayCount: number;
+  lateStartCount: number;
+  inProgressCount: number;
+}) {
+  const score =
+    input.overdueCount * 3 +
+    input.dueTodayCount * 2 +
+    input.lateStartCount +
+    (input.inProgressCount >= 6 ? 1 : 0);
+
+  if (score >= 6) {
+    return "risk" satisfies FireForecastLevel;
+  }
+
+  if (score >= 2) {
+    return "watch" satisfies FireForecastLevel;
+  }
+
+  return "safe" satisfies FireForecastLevel;
+}
+
+function getForecastLabel(level: FireForecastLevel) {
+  if (level === "risk") {
+    return "危険";
+  }
+  if (level === "watch") {
+    return "注意";
+  }
+  return "安全";
+}
+
+function getForecastBody(input: {
+  overdueCount: number;
+  dueTodayCount: number;
+  lateStartCount: number;
+}) {
+  if (input.overdueCount > 0) {
+    return `期限超過 ${input.overdueCount} 件`;
+  }
+  if (input.dueTodayCount > 0) {
+    return `本日期限 ${input.dueTodayCount} 件`;
+  }
+  if (input.lateStartCount > 0) {
+    return `未着手の遅延 ${input.lateStartCount} 件`;
+  }
+  return "大きな詰まりはありません";
+}
+
+export function TaskWorkspace({
+  isActive,
+  currentNoteId,
+  currentNoteTags,
+  initialDraftTitle = "",
+  initialSelectionText = "",
+  createRequestKey,
+  onConsumePrefill,
+  onOpenNote,
+  request,
+}: TaskWorkspaceProps) {
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const createInputRef = useRef<HTMLInputElement | null>(null);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [notes, setNotes] = useState<NoteOption[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTagFilter, setActiveTagFilter] = useState("__all__");
+  const [taskSortKey, setTaskSortKey] = useState<TaskSortKey>("updated_desc");
+  const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
+
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [attachCurrentNote, setAttachCurrentNote] = useState(false);
+  const [newTaskSourceNoteId, setNewTaskSourceNoteId] = useState("");
+  const [newTaskTags, setNewTaskTags] = useState<string[]>([]);
+  const [newTaskStartTargetDate, setNewTaskStartTargetDate] = useState("");
+  const [newTaskDueDate, setNewTaskDueDate] = useState("");
+  const [newTagInput, setNewTagInput] = useState("");
+
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [taskTagInputs, setTaskTagInputs] = useState<Record<string, string>>({});
+  const [taskStartTargetDates, setTaskStartTargetDates] = useState<Record<string, string>>({});
+  const [taskDueDates, setTaskDueDates] = useState<Record<string, string>>({});
+  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
+
+  const loadWorkspaceData = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const [taskResponse, noteResponse, tagResponse] = await Promise.all([
+        request<{ items: TaskItem[] }>("/tasks"),
+        request<{ items: NoteOption[] }>("/notes"),
+        request<{ items: Array<{ id: string; name: string }> }>("/tags"),
+      ]);
+
+      setTasks(taskResponse.items);
+      setNotes(noteResponse.items);
+      setAvailableTags(tagResponse.items.map((item) => item.name));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "タスクの読み込みに失敗しました",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadWorkspaceData();
+  }, []);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
+    if (initialDraftTitle.trim() || initialSelectionText.trim()) {
+      setNewTaskTitle(initialDraftTitle);
+      setAttachCurrentNote(Boolean(currentNoteId));
+      setNewTaskSourceNoteId(currentNoteId ?? "");
+      setNewTaskTags(currentNoteId ? currentNoteTags : []);
+      onConsumePrefill();
+    }
+  }, [
+    currentNoteId,
+    currentNoteTags,
+    initialDraftTitle,
+    initialSelectionText,
+    isActive,
+    onConsumePrefill,
+  ]);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
+    createInputRef.current?.focus();
+    createInputRef.current?.select();
+  }, [createRequestKey, isActive]);
+
+  useEffect(() => {
+    if (!expandedTaskId) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const workspace = workspaceRef.current;
+      const target = event.target as HTMLElement | null;
+      if (!workspace || !target || !workspace.contains(target)) {
+        setExpandedTaskId(null);
+        return;
+      }
+
+      if (target.closest(".task-board-row.is-expanded")) {
+        return;
+      }
+
+      setExpandedTaskId(null);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [expandedTaskId]);
+
+  const addTag = (currentTags: string[], rawTag: string) => {
+    const nextTag = rawTag.trim();
+    if (!nextTag) {
+      return currentTags;
+    }
+
+    if (currentTags.some((tag) => normalizeTag(tag) === normalizeTag(nextTag))) {
+      return currentTags;
+    }
+
+    return [...currentTags, nextTag];
+  };
+
+  const removeTag = (currentTags: string[], tagToRemove: string) =>
+    currentTags.filter((tag) => tag !== tagToRemove);
+
+  const getSuggestions = (currentTags: string[], input: string) => {
+    const normalizedInput = normalizeTag(input);
+    if (!normalizedInput) {
+      return [];
+    }
+
+    return availableTags
+      .filter(
+        (tag) =>
+          !currentTags.some((currentTag) => normalizeTag(currentTag) === normalizeTag(tag)),
+      )
+      .filter((tag) => normalizeTag(tag).includes(normalizedInput))
+      .slice(0, 5);
+  };
+
+  const updateTask = async (
+    taskId: string,
+    patch: {
+      title?: string;
+      status?: TaskStatus;
+      tags?: string[];
+      startTargetDate?: string | null;
+      dueDate?: string | null;
+      noteText?: string | null;
+      sourceNoteId?: string | null;
+    },
+  ) => {
+    const response = await request<{ item: TaskItem }>(`/tasks/${taskId}`, {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    });
+
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === taskId ? response.item : task)),
+    );
+    return response.item;
+  };
+
+  const handleCreateTask = async () => {
+    setIsCreating(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await request<{ item: TaskItem }>("/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: newTaskTitle,
+          status: "open",
+          tags: newTaskTags,
+          startTargetDate: newTaskStartTargetDate || null,
+          dueDate: newTaskDueDate || null,
+          sourceNoteId: attachCurrentNote ? newTaskSourceNoteId || null : null,
+          sourceSelectionText: initialSelectionText || null,
+          createdBy: "manual",
+        }),
+      });
+
+      setTasks((currentTasks) => [response.item, ...currentTasks]);
+      setNewTaskTitle("");
+      setAttachCurrentNote(false);
+      setNewTaskSourceNoteId("");
+      setNewTaskTags([]);
+      setNewTaskStartTargetDate("");
+      setNewTaskDueDate("");
+      setNewTagInput("");
+      await loadWorkspaceData();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "タスクの作成に失敗しました",
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    await request<{ ok: true }>(`/tasks/${taskId}`, {
+      method: "DELETE",
+    });
+
+    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
+    setExpandedTaskId((currentTaskId) => (currentTaskId === taskId ? null : currentTaskId));
+    await loadWorkspaceData();
+  };
+
+  const renderTagEditor = (
+    tags: string[],
+    inputValue: string,
+    onInputChange: (value: string) => void,
+    onAddTag: (tag: string) => void,
+    onRemoveTag: (tag: string) => void,
+  ) => {
+    const suggestions = getSuggestions(tags, inputValue);
+
+    return (
+      <div className="task-tags-editor">
+        <div className="note-tags">
+          {tags.length === 0 ? (
+            <span className="tag-pill is-muted">タグなし</span>
+          ) : (
+            tags.map((tag) => (
+              <span key={tag} className="tag-pill tag-pill-editable">
+                <span>{tag}</span>
+                <button
+                  type="button"
+                  className="tag-remove-button"
+                  onClick={() => onRemoveTag(tag)}
+                  aria-label={`タグ「${tag}」を削除`}
+                >
+                  x
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+
+        <div className="task-tag-input-row">
+          <input
+            className="task-tag-input"
+            type="text"
+            value={inputValue}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onAddTag(inputValue);
+              }
+            }}
+            placeholder="タグを追加"
+          />
+          <button
+            type="button"
+            className="ghost-button tag-add-button"
+            onClick={() => onAddTag(inputValue)}
+          >
+            タグ追加
+          </button>
+        </div>
+
+        {suggestions.length > 0 ? (
+          <div className="tag-suggestion-list is-inline" role="listbox">
+            {suggestions.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="tag-suggestion-item"
+                onClick={() => onAddTag(tag)}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const filteredTasks = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    const nextTasks = tasks.filter((task) => {
+      const matchesQuery =
+        normalizedQuery.length === 0 ||
+        task.title.toLowerCase().includes(normalizedQuery) ||
+        (task.noteText ?? "").toLowerCase().includes(normalizedQuery) ||
+        (task.sourceNoteTitle ?? "").toLowerCase().includes(normalizedQuery) ||
+        task.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery));
+
+      const matchesTag =
+        activeTagFilter === "__all__" ||
+        task.tags.some((tag) => normalizeTag(tag) === normalizeTag(activeTagFilter));
+
+      return matchesQuery && matchesTag;
+    });
+
+    nextTasks.sort((left, right) => {
+      if (taskSortKey === "due_asc") {
+        const leftDue = left.dueDate
+          ? new Date(`${left.dueDate}T00:00:00`).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const rightDue = right.dueDate
+          ? new Date(`${right.dueDate}T00:00:00`).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        if (leftDue !== rightDue) {
+          return leftDue - rightDue;
+        }
+        return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+      }
+
+      if (taskSortKey === "title_asc") {
+        return left.title.localeCompare(right.title, "ja");
+      }
+
+      return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    });
+
+    return nextTasks;
+  }, [activeTagFilter, searchQuery, taskSortKey, tasks]);
+
+  const groupedTasks = useMemo(
+    () => ({
+      open: filteredTasks.filter((task) => task.status === "open"),
+      in_progress: filteredTasks.filter((task) => task.status === "in_progress"),
+      done: filteredTasks.filter((task) => task.status === "done"),
+    }),
+    [filteredTasks],
+  );
+
+  const allMetrics = useMemo(() => {
+    const totalCount = tasks.length;
+    const openCount = tasks.filter((task) => task.status === "open").length;
+    const inProgressCount = tasks.filter((task) => task.status === "in_progress").length;
+    const doneCount = tasks.filter((task) => task.status === "done").length;
+    const overdueCount = tasks.filter(
+      (task) => task.status !== "done" && getDueState(task.dueDate) === "overdue",
+    ).length;
+    const dueTodayCount = tasks.filter(
+      (task) => task.status !== "done" && getDueState(task.dueDate) === "today",
+    ).length;
+    const lateStartCount = tasks.filter(
+      (task) => getStartTargetState(task.startTargetDate, task.status) === "late",
+    ).length;
+
+    const tagStats = new Map<
+      string,
+      { total: number; done: number; active: number }
+    >();
+    for (const task of tasks) {
+      for (const tag of task.tags) {
+        const current = tagStats.get(tag) ?? { total: 0, done: 0, active: 0 };
+        current.total += 1;
+        if (task.status === "done") {
+          current.done += 1;
+        } else {
+          current.active += 1;
+        }
+        tagStats.set(tag, current);
+      }
+    }
+
+    const topTags = [...tagStats.entries()]
+      .sort((left, right) => right[1].total - left[1].total)
+      .slice(0, 5)
+      .map(([name, stat]) => ({
+        name,
+        total: stat.total,
+        done: stat.done,
+        active: stat.active,
+        completionRatio: stat.total === 0 ? 0 : Math.round((stat.done / stat.total) * 100),
+      }));
+
+    const completionRatio =
+      totalCount === 0 ? 0 : Math.round((doneCount / totalCount) * 100);
+    const forecastLevel = getForecastLevel({
+      overdueCount,
+      dueTodayCount,
+      lateStartCount,
+      inProgressCount,
+    });
+
+    return {
+      totalCount,
+      openCount,
+      inProgressCount,
+      doneCount,
+      overdueCount,
+      dueTodayCount,
+      lateStartCount,
+      completionRatio,
+      forecastLevel,
+      forecastLabel: getForecastLabel(forecastLevel),
+      forecastBody: getForecastBody({
+        overdueCount,
+        dueTodayCount,
+        lateStartCount,
+      }),
+      topTags,
+    };
+  }, [tasks]);
+
+  const renderTaskRow = (task: TaskItem) => {
+    const dueState = getDueState(task.dueDate);
+    const isExpanded = expandedTaskId === task.id;
+
+    return (
+      <article
+        key={task.id}
+        className={`task-board-row${isExpanded ? " is-expanded" : ""}${task.status === "done" ? " is-done" : ""}${dueState === "today" ? " is-due-today" : ""}${dueState === "overdue" ? " is-overdue" : ""}`}
+      >
+        <div className="task-board-row-summary">
+          <label className="task-board-row-main">
+            <input
+              type="checkbox"
+              checked={task.status === "done"}
+              onChange={(event) =>
+                void updateTask(task.id, {
+                  status: event.target.checked ? "done" : "open",
+                })
+              }
+            />
+            <input
+              className="task-title-input"
+              type="text"
+              value={task.title}
+              onChange={(event) =>
+                setTasks((currentTasks) =>
+                  currentTasks.map((currentTask) =>
+                    currentTask.id === task.id
+                      ? { ...currentTask, title: event.target.value }
+                      : currentTask,
+                  ),
+                )
+              }
+              onBlur={(event) => void updateTask(task.id, { title: event.target.value })}
+            />
+          </label>
+
+          <div className="task-board-row-meta-inline">
+            <span className={`task-row-due is-${dueState}`}>{formatDateLabel(task.dueDate)}</span>
+            <div className="task-row-tags">
+              {task.tags.length === 0 ? (
+                <span className="task-row-tag is-empty">タグなし</span>
+              ) : (
+                task.tags.slice(0, 3).map((tag) => (
+                  <span key={tag} className="task-row-tag">
+                    {tag}
+                  </span>
+                ))
+              )}
+              {task.tags.length > 3 ? (
+                <span className="task-row-tag is-empty">+{task.tags.length - 3}</span>
+              ) : null}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="ghost-button task-expand-button"
+            aria-label={isExpanded ? "詳細を閉じる" : "詳細を表示"}
+            title={isExpanded ? "詳細を閉じる" : "詳細を表示"}
+            onClick={() => setExpandedTaskId((current) => (current === task.id ? null : task.id))}
+          >
+            {isExpanded ? "▴" : "▾"}
+          </button>
+        </div>
+
+        {isExpanded ? (
+          <div className="task-board-row-detail">
+            <div className="task-detail-meta-row">
+              <div className="task-meta-primary">
+                {task.createdBy === "ai" ? <span className="task-ai-badge">AI</span> : null}
+                <select
+                  className="task-note-select"
+                  value={task.sourceNoteId ?? ""}
+                  onChange={(event) =>
+                    void updateTask(task.id, {
+                      sourceNoteId: event.target.value || null,
+                    })
+                  }
+                  aria-label="紐付けメモ"
+                >
+                  <option value="">元メモなし</option>
+                  {notes.map((note) => (
+                    <option key={note.id} value={note.id}>
+                      {note.title.trim() || "無題のメモ"}
+                    </option>
+                  ))}
+                </select>
+                {task.sourceNoteId ? (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => onOpenNote(task.sourceNoteId as string)}
+                  >
+                    開く
+                  </button>
+                ) : null}
+                <span>{formatDateTime(task.updatedAt)}</span>
+              </div>
+
+              <button
+                type="button"
+                className="ghost-button danger-button task-delete-button"
+                onClick={() => void deleteTask(task.id)}
+              >
+                削除
+              </button>
+            </div>
+
+            <div className="task-detail-schedule-row">
+              <label className="task-inline-field task-inline-field-status">
+                <span>状態</span>
+                <select
+                  value={task.status}
+                  onChange={(event) =>
+                    void updateTask(task.id, {
+                      status: event.target.value as TaskStatus,
+                    })
+                  }
+                >
+                  <option value="open">未着手</option>
+                  <option value="in_progress">進行中</option>
+                  <option value="done">完了</option>
+                </select>
+              </label>
+              <label className="task-inline-field">
+                <span>着手目標</span>
+                <input
+                  type="date"
+                  value={taskStartTargetDates[task.id] ?? task.startTargetDate ?? ""}
+                  onChange={(event) =>
+                    setTaskStartTargetDates((current) => ({
+                      ...current,
+                      [task.id]: event.target.value,
+                    }))
+                  }
+                  onBlur={(event) =>
+                    void updateTask(task.id, {
+                      startTargetDate: event.target.value || null,
+                    })
+                  }
+                />
+              </label>
+              <label className="task-inline-field">
+                <span>期日</span>
+                <input
+                  type="date"
+                  value={taskDueDates[task.id] ?? task.dueDate ?? ""}
+                  onChange={(event) =>
+                    setTaskDueDates((current) => ({
+                      ...current,
+                      [task.id]: event.target.value,
+                    }))
+                  }
+                  onBlur={(event) =>
+                    void updateTask(task.id, {
+                      dueDate: event.target.value || null,
+                    })
+                  }
+                />
+              </label>
+            </div>
+
+            {task.sourceSelectionText ? (
+              <p className="task-selection-preview">{task.sourceSelectionText}</p>
+            ) : null}
+
+            {renderTagEditor(
+              task.tags,
+              taskTagInputs[task.id] ?? "",
+              (value) =>
+                setTaskTagInputs((current) => ({
+                  ...current,
+                  [task.id]: value,
+                })),
+              (rawTag) => {
+                const nextTags = addTag(task.tags, rawTag);
+                if (nextTags === task.tags) {
+                  return;
+                }
+
+                setTaskTagInputs((current) => ({ ...current, [task.id]: "" }));
+                void updateTask(task.id, { tags: nextTags });
+              },
+              (tagToRemove) => {
+                void updateTask(task.id, { tags: removeTag(task.tags, tagToRemove) });
+              },
+            )}
+
+            <textarea
+              className="task-note-textarea"
+              rows={2}
+              value={taskNotes[task.id] ?? task.noteText ?? ""}
+              onChange={(event) =>
+                setTaskNotes((current) => ({
+                  ...current,
+                  [task.id]: event.target.value,
+                }))
+              }
+              onBlur={(event) =>
+                void updateTask(task.id, {
+                  noteText: event.target.value || null,
+                })
+              }
+              placeholder="2行メモ"
+            />
+          </div>
+        ) : null}
+      </article>
+    );
+  };
+
+  return (
+    <div
+      ref={workspaceRef}
+      className={`task-workspace${isActive ? "" : " is-hidden"}`}
+      aria-hidden={!isActive}
+    >
+      <aside className="task-dashboard-panel">
+        <div className="task-dashboard-header">
+          <div>
+            <p className="eyebrow">タスクダッシュボード</p>
+            <h2>状況サマリー</h2>
+          </div>
+        </div>
+
+        <div className="task-dashboard-compact">
+          <div
+            className="task-progress-ring"
+            style={{ "--task-progress-ratio": `${allMetrics.completionRatio}%` } as CSSProperties}
+          >
+            <strong>{allMetrics.completionRatio}%</strong>
+            <span>完了率</span>
+          </div>
+
+          <div className="task-kpi-grid">
+            <div className="task-kpi-card">
+              <strong>{allMetrics.openCount}</strong>
+              <span>未着手</span>
+            </div>
+            <div className="task-kpi-card">
+              <strong>{allMetrics.inProgressCount}</strong>
+              <span>進行中</span>
+            </div>
+            <div className="task-kpi-card">
+              <strong>{allMetrics.overdueCount}</strong>
+              <span>期限超過</span>
+            </div>
+            <div className="task-kpi-card">
+              <strong>{allMetrics.dueTodayCount}</strong>
+              <span>本日期限</span>
+            </div>
+          </div>
+
+          <div className={`task-forecast-card is-${allMetrics.forecastLevel}`}>
+            <span className="task-forecast-label">炎上予報</span>
+            <strong>{allMetrics.forecastLabel}</strong>
+            <p>{allMetrics.forecastBody}</p>
+          </div>
+        </div>
+
+        <div className="task-dashboard-detail">
+          <section className="task-dashboard-card">
+            <div className="task-dashboard-card-header">
+              <h3>全体進捗</h3>
+              <span>{allMetrics.totalCount} 件</span>
+            </div>
+            <div className="task-dashboard-bars">
+              <div className="task-dashboard-bar-row">
+                <span>未着手</span>
+                <div className="task-dashboard-bar-track">
+                  <div
+                    className="task-dashboard-bar-fill is-open"
+                    style={{
+                      width: allMetrics.totalCount
+                        ? `${(allMetrics.openCount / allMetrics.totalCount) * 100}%`
+                        : "0%",
+                    }}
+                  />
+                </div>
+                <strong>{allMetrics.openCount}</strong>
+              </div>
+              <div className="task-dashboard-bar-row">
+                <span>進行中</span>
+                <div className="task-dashboard-bar-track">
+                  <div
+                    className="task-dashboard-bar-fill is-progress"
+                    style={{
+                      width: allMetrics.totalCount
+                        ? `${(allMetrics.inProgressCount / allMetrics.totalCount) * 100}%`
+                        : "0%",
+                    }}
+                  />
+                </div>
+                <strong>{allMetrics.inProgressCount}</strong>
+              </div>
+              <div className="task-dashboard-bar-row">
+                <span>完了</span>
+                <div className="task-dashboard-bar-track">
+                  <div
+                    className="task-dashboard-bar-fill is-done"
+                    style={{
+                      width: allMetrics.totalCount
+                        ? `${(allMetrics.doneCount / allMetrics.totalCount) * 100}%`
+                        : "0%",
+                    }}
+                  />
+                </div>
+                <strong>{allMetrics.doneCount}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="task-dashboard-card">
+            <div className="task-dashboard-card-header">
+              <h3>タグ別進捗</h3>
+              <span>上位 {allMetrics.topTags.length} 件</span>
+            </div>
+            <div className="task-tag-progress-list">
+              {allMetrics.topTags.length === 0 ? (
+                <p className="task-dashboard-empty">タグ付きタスクはまだありません</p>
+              ) : (
+                allMetrics.topTags.map((tag) => (
+                  <div key={tag.name} className="task-tag-progress-row">
+                    <div className="task-tag-progress-header">
+                      <span>{tag.name}</span>
+                      <strong>{tag.completionRatio}%</strong>
+                    </div>
+                    <div className="task-dashboard-bar-track">
+                      <div
+                        className="task-dashboard-bar-fill is-tag"
+                        style={{ width: `${tag.completionRatio}%` }}
+                      />
+                    </div>
+                    <small>
+                      完了 {tag.done} / 全体 {tag.total}
+                    </small>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          <section className="task-dashboard-card">
+            <div className="task-dashboard-card-header">
+              <h3>今週の注意点</h3>
+              <span>{allMetrics.forecastLabel}</span>
+            </div>
+            <ul className="task-dashboard-list">
+              <li>期限超過: {allMetrics.overdueCount} 件</li>
+              <li>本日期限: {allMetrics.dueTodayCount} 件</li>
+              <li>着手遅延: {allMetrics.lateStartCount} 件</li>
+            </ul>
+          </section>
+        </div>
+      </aside>
+
+      <section className="task-board-panel">
+        <div className="task-board-create-panel">
+          <div className="task-board-section-header">
+            <div>
+              <p className="eyebrow">タスクワークスペース</p>
+            </div>
+          </div>
+
+          <div className="task-create-row">
+            <input
+              ref={createInputRef}
+              className="task-create-input"
+              type="text"
+              value={newTaskTitle}
+              onChange={(event) => setNewTaskTitle(event.target.value)}
+              placeholder="タスクを入力"
+            />
+            <button
+              type="button"
+              className="primary-button task-create-button"
+              onClick={() => void handleCreateTask()}
+              disabled={!newTaskTitle.trim() || isCreating}
+            >
+              {isCreating ? "追加中..." : "追加"}
+            </button>
+          </div>
+
+          {initialSelectionText ? (
+            <p className="task-selection-preview is-draft">{initialSelectionText}</p>
+          ) : null}
+
+          <div className="task-create-inline-options">
+            <label className="task-attach-toggle">
+              <input
+                type="checkbox"
+                checked={attachCurrentNote}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAttachCurrentNote(checked);
+                  if (checked) {
+                    setNewTaskSourceNoteId(currentNoteId ?? "");
+                  } else {
+                    setNewTaskSourceNoteId("");
+                  }
+                }}
+                disabled={!currentNoteId}
+              />
+              <span>現在のメモを紐付ける</span>
+            </label>
+
+            <label className="task-source-select">
+              <span>元メモ</span>
+              <select
+                value={newTaskSourceNoteId}
+                onChange={(event) => {
+                  setNewTaskSourceNoteId(event.target.value);
+                  setAttachCurrentNote(Boolean(event.target.value));
+                }}
+                disabled={notes.length === 0}
+              >
+                <option value="">メモを選択</option>
+                {notes.map((note) => (
+                  <option key={note.id} value={note.id}>
+                    {note.title.trim() || "無題"}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="task-create-details">
+              <label className="task-date-field">
+                <span>着手目標</span>
+                <input
+                  type="date"
+                  value={newTaskStartTargetDate}
+                  onChange={(event) => setNewTaskStartTargetDate(event.target.value)}
+                />
+              </label>
+              <label className="task-date-field">
+                <span>期日</span>
+                <input
+                  type="date"
+                  value={newTaskDueDate}
+                  onChange={(event) => setNewTaskDueDate(event.target.value)}
+                />
+              </label>
+            </div>
+          </div>
+
+          {renderTagEditor(
+            newTaskTags,
+            newTagInput,
+            setNewTagInput,
+            (rawTag) => {
+              setNewTaskTags((currentTags) => addTag(currentTags, rawTag));
+              setNewTagInput("");
+            },
+            (tagToRemove) => {
+              setNewTaskTags((currentTags) => removeTag(currentTags, tagToRemove));
+            },
+          )}
+        </div>
+
+        {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+
+        <div className="task-board-controls">
+          <div className="field search-field">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="タスク・タグ・メモを検索"
+            />
+          </div>
+          <label className="field task-board-filter">
+            <span>タグ</span>
+            <select
+              value={activeTagFilter}
+              onChange={(event) => setActiveTagFilter(event.target.value)}
+            >
+              <option value="__all__">すべて</option>
+              {availableTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field task-board-filter">
+            <span>並び順</span>
+            <select
+              value={taskSortKey}
+              onChange={(event) => setTaskSortKey(event.target.value as TaskSortKey)}
+            >
+              <option value="updated_desc">更新日が新しい順</option>
+              <option value="due_asc">期日が近い順</option>
+              <option value="title_asc">タイトル順</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            className="ghost-button task-completed-toggle"
+            onClick={() => setIsCompletedModalOpen(true)}
+            disabled={groupedTasks.done.length === 0}
+          >
+            完了一覧
+          </button>
+        </div>
+
+        <div className="task-board-canvas">
+          {isLoading ? <div className="list-empty">タスクを読み込み中...</div> : null}
+
+          {!isLoading ? (
+            <>
+              <section className="task-board-section">
+                <div className="task-board-section-header">
+                  <h3>未着手</h3>
+                  <span>{groupedTasks.open.length} 件</span>
+                </div>
+                <div className="task-board-list">
+                  {groupedTasks.open.length === 0 ? (
+                    <div className="list-empty">未着手タスクはありません</div>
+                  ) : (
+                    groupedTasks.open.map(renderTaskRow)
+                  )}
+                </div>
+              </section>
+
+              <section className="task-board-section">
+                <div className="task-board-section-header">
+                  <h3>進行中</h3>
+                  <span>{groupedTasks.in_progress.length} 件</span>
+                </div>
+                <div className="task-board-list">
+                  {groupedTasks.in_progress.length === 0 ? (
+                    <div className="list-empty">進行中タスクはありません</div>
+                  ) : (
+                    groupedTasks.in_progress.map(renderTaskRow)
+                  )}
+                </div>
+              </section>
+
+            </>
+          ) : null}
+        </div>
+      </section>
+
+      {isCompletedModalOpen ? (
+        <div className="modal-backdrop" onClick={() => setIsCompletedModalOpen(false)}>
+          <div
+            className="modal-card completed-tasks-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="completed-tasks-header">
+              <div>
+                <p className="eyebrow">完了タスク</p>
+                <h2>完了一覧</h2>
+              </div>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setIsCompletedModalOpen(false)}
+              >
+                閉じる
+              </button>
+            </div>
+            <div className="completed-tasks-list">
+              {groupedTasks.done.length === 0 ? (
+                <div className="list-empty">完了タスクはありません</div>
+              ) : (
+                groupedTasks.done.map(renderTaskRow)
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

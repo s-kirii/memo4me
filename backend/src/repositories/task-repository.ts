@@ -4,7 +4,8 @@ import type { TaskItem, TaskStatus } from "../types";
 type TaskRow = {
   id: string;
   title: string;
-  status: TaskStatus;
+  status: "open" | "done";
+  workflow_stage: "open" | "in_progress";
   start_target_date: string | null;
   due_date: string | null;
   note_text: string | null;
@@ -19,6 +20,13 @@ type TaskRow = {
 export class TaskRepository {
   constructor(private readonly db: AppDatabase) {}
 
+  private toDatabaseStatus(status: TaskStatus) {
+    return {
+      dbStatus: status === "done" ? "done" : "open",
+      workflowStage: status === "in_progress" ? "in_progress" : "open",
+    } as const;
+  }
+
   list(): TaskItem[] {
     const rows = this.db
       .prepare(
@@ -27,6 +35,7 @@ export class TaskRepository {
           tasks.id,
           tasks.title,
           tasks.status,
+          tasks.workflow_stage,
           tasks.start_target_date,
           tasks.due_date,
           tasks.note_text,
@@ -40,6 +49,7 @@ export class TaskRepository {
         LEFT JOIN notes ON notes.id = tasks.source_note_id
         ORDER BY
           CASE tasks.status WHEN 'open' THEN 0 ELSE 1 END ASC,
+          CASE tasks.workflow_stage WHEN 'open' THEN 0 ELSE 1 END ASC,
           tasks.updated_at DESC
         `,
       )
@@ -48,7 +58,7 @@ export class TaskRepository {
     return rows.map((row) => ({
       id: row.id,
       title: row.title,
-      status: row.status,
+      status: row.status === "done" ? "done" : row.workflow_stage,
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
@@ -70,6 +80,7 @@ export class TaskRepository {
           tasks.id,
           tasks.title,
           tasks.status,
+          tasks.workflow_stage,
           tasks.start_target_date,
           tasks.due_date,
           tasks.note_text,
@@ -94,7 +105,7 @@ export class TaskRepository {
     return {
       id: row.id,
       title: row.title,
-      status: row.status,
+      status: row.status === "done" ? "done" : row.workflow_stage,
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
@@ -122,6 +133,8 @@ export class TaskRepository {
     createdAt: string;
     updatedAt: string;
   }) {
+    const taskStatus = this.toDatabaseStatus(input.status);
+
     this.db
       .prepare(
         `
@@ -129,6 +142,7 @@ export class TaskRepository {
           id,
           title,
           status,
+          workflow_stage,
           start_target_date,
           due_date,
           note_text,
@@ -141,7 +155,8 @@ export class TaskRepository {
         VALUES (
           @id,
           @title,
-          @status,
+          @dbStatus,
+          @workflowStage,
           @startTargetDate,
           @dueDate,
           @noteText,
@@ -153,7 +168,10 @@ export class TaskRepository {
         )
         `,
       )
-      .run(input);
+      .run({
+        ...input,
+        ...taskStatus,
+      });
 
     this.upsertTagsForTask(input.id, input.tags);
   }
@@ -169,12 +187,15 @@ export class TaskRepository {
     sourceNoteId: string | null;
     updatedAt: string;
   }) {
+    const taskStatus = this.toDatabaseStatus(input.status);
+
     this.db
       .prepare(
         `
         UPDATE tasks
         SET title = @title,
-            status = @status,
+            status = @dbStatus,
+            workflow_stage = @workflowStage,
             start_target_date = @startTargetDate,
             due_date = @dueDate,
             note_text = @noteText,
@@ -183,7 +204,10 @@ export class TaskRepository {
         WHERE id = @id
         `,
       )
-      .run(input);
+      .run({
+        ...input,
+        ...taskStatus,
+      });
 
     this.upsertTagsForTask(input.id, input.tags);
   }

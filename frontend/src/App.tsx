@@ -9,7 +9,7 @@ import {
 import { AiAssistantModal } from "./components/AiAssistantModal";
 import { AppearanceModal } from "./components/AppearanceModal";
 import { AiSettingsModal } from "./components/AiSettingsModal";
-import { TasksModal } from "./components/TasksModal";
+import { TaskWorkspace } from "./components/TaskWorkspace";
 import { RichTextEditor } from "./components/RichTextEditor";
 import { request } from "./lib/api";
 import "./App.css";
@@ -46,8 +46,10 @@ type EditorDraft = {
 };
 
 type ThemeId = "soft-editorial" | "neo-workspace" | "modern-oasis";
+type WorkspaceId = "notes" | "tasks";
 
 const THEME_STORAGE_KEY = "memo4me.theme";
+const WORKSPACE_STORAGE_KEY = "memo4me.workspace";
 
 function getDisplayTitle(title: string) {
   return title.trim() || "無題";
@@ -112,6 +114,10 @@ function App() {
   const [sort, setSort] = useState("updated_desc");
   const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [tags, setTags] = useState<TagItem[]>([]);
+  const [workspace, setWorkspace] = useState<WorkspaceId>(() => {
+    const savedWorkspace = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    return savedWorkspace === "tasks" ? "tasks" : "notes";
+  });
   const [tagInput, setTagInput] = useState("");
   const [isTagInputFocused, setIsTagInputFocused] = useState(false);
   const [activeTagSuggestionIndex, setActiveTagSuggestionIndex] = useState(-1);
@@ -120,7 +126,6 @@ function App() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
-  const [isTasksOpen, setIsTasksOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isTagFilterMenuOpen, setIsTagFilterMenuOpen] = useState(false);
@@ -135,6 +140,7 @@ function App() {
   const [selectedEditorText, setSelectedEditorText] = useState("");
   const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
   const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
+  const [taskCreateRequestKey, setTaskCreateRequestKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exitMessage, setExitMessage] = useState<string | null>(null);
   const [isExiting, setIsExiting] = useState(false);
@@ -270,6 +276,10 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, workspace);
+  }, [workspace]);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -716,7 +726,22 @@ function App() {
     const selectionText = selectedEditorText.trim();
     setPendingTaskSelectionText(selectionText);
     setPendingTaskDraftTitle(selectionText);
-    setIsTasksOpen(true);
+    setWorkspace("tasks");
+    setTaskCreateRequestKey((current) => current + 1);
+  };
+
+  const handlePrimaryAction = () => {
+    if (workspace === "notes") {
+      void handleCreateNote();
+      return;
+    }
+
+    setTaskCreateRequestKey((current) => current + 1);
+  };
+
+  const consumeTaskPrefill = () => {
+    setPendingTaskDraftTitle("");
+    setPendingTaskSelectionText("");
   };
 
   return (
@@ -725,16 +750,29 @@ function App() {
         <div>
           <p className="eyebrow">memo4me</p>
         </div>
-        <div className="header-actions">
+        <div className="workspace-tabs" role="tablist" aria-label="ワークスペース切り替え">
           <button
             type="button"
-            className="ghost-button"
-            onClick={() => setIsTasksOpen(true)}
+            className={`workspace-tab${workspace === "notes" ? " is-active" : ""}`}
+            onClick={() => setWorkspace("notes")}
+            role="tab"
+            aria-selected={workspace === "notes"}
           >
-            タスクリスト管理
+            メモ
           </button>
-          <button className="primary-button" onClick={() => void handleCreateNote()}>
-            新規メモ
+          <button
+            type="button"
+            className={`workspace-tab${workspace === "tasks" ? " is-active" : ""}`}
+            onClick={() => setWorkspace("tasks")}
+            role="tab"
+            aria-selected={workspace === "tasks"}
+          >
+            タスク
+          </button>
+        </div>
+        <div className="header-actions">
+          <button className="primary-button" onClick={handlePrimaryAction}>
+            {workspace === "notes" ? "新規メモ" : "新規タスク"}
           </button>
           <div ref={settingsMenuRef} className="settings-menu">
             <button
@@ -785,7 +823,7 @@ function App() {
         </div>
       </header>
 
-      <main className="app-layout">
+      <main className={`app-layout workspace-main${workspace === "notes" ? "" : " is-hidden"}`}>
         <aside className="sidebar">
           <section className="sidebar-section">
             <div className="sidebar-section-header">
@@ -1081,6 +1119,24 @@ function App() {
         </section>
       </main>
 
+      <main className={`workspace-main${workspace === "tasks" ? "" : " is-hidden"}`}>
+        <TaskWorkspace
+          isActive={workspace === "tasks"}
+          currentNoteId={selectedNote?.id ?? null}
+          currentNoteTitle={draft.title}
+          currentNoteTags={draft.tags}
+          initialDraftTitle={pendingTaskDraftTitle}
+          initialSelectionText={pendingTaskSelectionText}
+          createRequestKey={taskCreateRequestKey}
+          onConsumePrefill={consumeTaskPrefill}
+          onOpenNote={(noteId) => {
+            setSelectedNoteId(noteId);
+            setWorkspace("notes");
+          }}
+          request={request}
+        />
+      </main>
+
       {exitMessage ? (
         <div className="exit-banner" role="status">
           <strong>アプリを終了しました。</strong> {exitMessage}
@@ -1119,17 +1175,6 @@ function App() {
           setIsAiAssistantOpen(false);
         }}
         onCreateNoteFromOutput={handleCreateNoteFromOutput}
-        request={request}
-      />
-      <TasksModal
-        isOpen={isTasksOpen}
-        currentNoteId={selectedNote?.id ?? null}
-        currentNoteTitle={draft.title}
-        currentNoteTags={draft.tags}
-        initialDraftTitle={pendingTaskDraftTitle}
-        initialSelectionText={pendingTaskSelectionText}
-        onClose={() => setIsTasksOpen(false)}
-        onOpenNote={(noteId) => setSelectedNoteId(noteId)}
         request={request}
       />
     </div>

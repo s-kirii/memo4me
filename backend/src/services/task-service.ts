@@ -4,8 +4,8 @@ import { TaskRepository } from "../repositories/task-repository";
 import type { TaskInput, TaskItem, TaskUpdateInput } from "../types";
 import { HttpError } from "../utils/http-error";
 
-function assertStatus(value: string): asserts value is "open" | "done" {
-  if (value !== "open" && value !== "done") {
+function assertStatus(value: string): asserts value is "open" | "in_progress" | "done" {
+  if (value !== "open" && value !== "in_progress" && value !== "done") {
     throw new HttpError(400, "VALIDATION_ERROR", "task status is invalid");
   }
 }

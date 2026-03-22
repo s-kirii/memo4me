@@ -120,7 +120,7 @@ export type AiExtractTaskCandidatesResult = {
   candidates: AiTaskCandidate[];
 };
 
-export type TaskStatus = "open" | "done";
+export type TaskStatus = "open" | "in_progress" | "done";
 
 export type TaskOrigin = "manual" | "ai";
 

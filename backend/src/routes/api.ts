@@ -66,6 +66,10 @@ function parseTaskInput(body: unknown): TaskInput {
     title: typeof payload.title === "string" ? payload.title : "",
     status: typeof payload.status === "string" ? payload.status : undefined,
     isTodayTask: typeof payload.isTodayTask === "boolean" ? payload.isTodayTask : undefined,
+    estimatedHours:
+      typeof payload.estimatedHours === "number" ? payload.estimatedHours : null,
+    progressPercent:
+      typeof payload.progressPercent === "number" ? payload.progressPercent : undefined,
     tags: Array.isArray(payload.tags) ? payload.tags : undefined,
     startTargetDate:
       typeof payload.startTargetDate === "string" ? payload.startTargetDate : null,
@@ -90,6 +94,14 @@ function parseTaskUpdateInput(body: unknown): TaskUpdateInput {
     status: typeof payload.status === "string" ? payload.status : undefined,
     isTodayTask:
       typeof payload.isTodayTask === "boolean" ? payload.isTodayTask : undefined,
+    estimatedHours:
+      typeof payload.estimatedHours === "number"
+        ? payload.estimatedHours
+        : payload.estimatedHours === null
+          ? null
+          : undefined,
+    progressPercent:
+      typeof payload.progressPercent === "number" ? payload.progressPercent : undefined,
     tags: Array.isArray(payload.tags) ? payload.tags : undefined,
     sourceNoteId:
       typeof payload.sourceNoteId === "string"

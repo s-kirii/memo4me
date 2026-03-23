@@ -70,6 +70,9 @@ At the time this file was written, the following areas are already implemented.
 - task dashboard with filtered summary metrics
 - task creation modal
 - `today` task flag and filter
+- task effort estimate (`想定工数[H]`) and progress percentage (`進捗率[%]`)
+- progress-driven task state (`0%=未着手 / 10-90%=進行中 / 100%=完了`)
+- weekly/monthly workload-based fire forecast with daily breakdown
 
 Important known remaining areas:
 

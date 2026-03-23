@@ -2184,6 +2184,93 @@
   background: color-mix(in srgb, #efc1bb 28%, var(--color-surface-card));
 }
 
+.task-forecast-mode-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface-input) 82%, transparent);
+}
+
+.task-forecast-mode-toggle button {
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.task-forecast-mode-toggle button.is-active {
+  background: color-mix(in srgb, var(--color-button-primary-bg) 22%, var(--color-surface-card));
+  color: var(--color-text);
+}
+
+.task-forecast-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.task-forecast-summary strong {
+  font-size: 0.94rem;
+}
+
+.task-forecast-summary span {
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.task-forecast-days {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.task-forecast-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface-input) 84%, transparent);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.task-forecast-day span {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+}
+
+.task-forecast-day strong {
+  font-size: 0.86rem;
+}
+
+.task-forecast-day.is-safe {
+  border-color: color-mix(in srgb, #6ea487 28%, var(--color-line));
+}
+
+.task-forecast-day.is-watch {
+  border-color: color-mix(in srgb, #d2a43c 42%, var(--color-line));
+  background: color-mix(in srgb, #f3df9b 18%, var(--color-surface-card));
+}
+
+.task-forecast-day.is-risk {
+  border-color: color-mix(in srgb, #c96e68 46%, var(--color-line));
+  background: color-mix(in srgb, #efc1bb 18%, var(--color-surface-card));
+}
+
 .task-dashboard-card-header,
 .task-tag-progress-header {
   display: flex;
@@ -2396,6 +2483,25 @@
   flex: 0 1 48%;
 }
 
+.task-row-status,
+.task-row-progress {
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.task-row-status.is-open {
+  color: color-mix(in srgb, var(--color-accent) 78%, #8c6439);
+}
+
+.task-row-status.is-in_progress {
+  color: #9a7516;
+}
+
+.task-row-status.is-done {
+  color: #4f7a63;
+}
+
 .task-row-due.is-today {
   color: #9a7516;
   font-weight: 700;
@@ -2422,9 +2528,44 @@
   min-width: 0;
 }
 
+.task-detail-status-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--color-line) 62%, transparent);
+  color: var(--color-text);
+}
+
+.task-detail-status-pill.is-safe,
+.task-detail-status-pill.is-open {
+  background: color-mix(in srgb, var(--color-accent-soft) 70%, transparent);
+  color: color-mix(in srgb, var(--color-accent) 82%, #7d5e42);
+}
+
+.task-detail-status-pill.is-watch,
+.task-detail-status-pill.is-in_progress {
+  background: color-mix(in srgb, #f3e1a1 72%, transparent);
+  color: #8a6712;
+}
+
+.task-detail-status-pill.is-risk,
+.task-detail-status-pill.is-done {
+  background: color-mix(in srgb, #efc1bb 72%, transparent);
+  color: var(--color-danger);
+}
+
+.task-detail-progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 8px;
+  align-items: start;
+}
+
 .task-detail-schedule-row {
   display: grid;
-  grid-template-columns: minmax(92px, 116px) repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
 }
@@ -2459,6 +2600,34 @@
 
 .task-inline-field-status select {
   min-width: 98px;
+}
+
+.task-inline-field-progress {
+  min-width: 0;
+}
+
+.task-progress-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.task-progress-toggle-item {
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: var(--color-surface-input);
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  line-height: 1;
+}
+
+.task-progress-toggle-item.is-active {
+  border-color: color-mix(in srgb, var(--color-button-primary-bg) 72%, var(--color-line));
+  background: color-mix(in srgb, var(--color-button-primary-bg) 26%, var(--color-surface-card));
+  color: var(--color-text);
 }
 
 .task-delete-button {
@@ -2499,7 +2668,7 @@
 
 .task-create-details {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 132px repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2526,6 +2695,17 @@
   color: var(--color-text);
   font: inherit;
   font-size: 0.84rem;
+}
+
+.task-create-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-create-progress > span {
+  color: var(--color-muted);
+  font-size: 0.76rem;
 }
 
 .task-attach-toggle {
@@ -2658,6 +2838,13 @@
     grid-template-columns: 1fr;
   }
 
+  .task-detail-progress-row,
+  .task-create-details,
+  .task-forecast-days,
+  .task-forecast-detail-item {
+    grid-template-columns: 1fr;
+  }
+
   .task-board-row-meta-inline {
     flex: 1 1 auto;
     justify-content: flex-start;
@@ -2699,6 +2886,53 @@
   display: flex;
   justify-content: flex-end;
   padding-top: 4px;
+}
+
+.task-forecast-detail-modal {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 18px;
+  gap: 12px;
+}
+
+.task-forecast-detail-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-forecast-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.task-forecast-detail-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface-card) 88%, transparent);
+}
+
+.task-forecast-detail-item strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.task-forecast-detail-item p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
 }
 
 .completed-tasks-header {

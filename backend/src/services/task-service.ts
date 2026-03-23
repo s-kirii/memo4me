@@ -42,6 +42,77 @@ function normalizeTaskNote(value: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+function normalizeEstimatedHours(value: number | null | undefined) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (!Number.isFinite(value)) {
+    throw new HttpError(400, "VALIDATION_ERROR", "estimatedHours must be a number");
+  }
+
+  if (value < 0) {
+    throw new HttpError(400, "VALIDATION_ERROR", "estimatedHours must not be negative");
+  }
+
+  if (value > 9999) {
+    throw new HttpError(400, "VALIDATION_ERROR", "estimatedHours is too large");
+  }
+
+  return Math.round(value * 10) / 10;
+}
+
+function statusToProgressPercent(status: "open" | "in_progress" | "done") {
+  if (status === "done") {
+    return 100;
+  }
+
+  if (status === "in_progress") {
+    return 10;
+  }
+
+  return 0;
+}
+
+function normalizeProgressPercent(
+  value: number | undefined,
+  fallbackStatus?: "open" | "in_progress" | "done",
+) {
+  if (value === undefined) {
+    return fallbackStatus ? statusToProgressPercent(fallbackStatus) : 0;
+  }
+
+  if (!Number.isInteger(value) || value < 0 || value > 100) {
+    throw new HttpError(
+      400,
+      "VALIDATION_ERROR",
+      "progressPercent must be an integer between 0 and 100",
+    );
+  }
+
+  if (value % 10 !== 0) {
+    throw new HttpError(
+      400,
+      "VALIDATION_ERROR",
+      "progressPercent must be in 10 percent increments",
+    );
+  }
+
+  return value;
+}
+
+function progressPercentToStatus(progressPercent: number): "open" | "in_progress" | "done" {
+  if (progressPercent >= 100) {
+    return "done";
+  }
+
+  if (progressPercent > 0) {
+    return "in_progress";
+  }
+
+  return "open";
+}
+
 export class TaskService {
   constructor(
     private readonly taskRepository: TaskRepository,
@@ -60,14 +131,18 @@ export class TaskService {
     }
 
     const now = new Date().toISOString();
+    const progressPercent = normalizeProgressPercent(input.progressPercent, input.status);
+    const nextStatus = progressPercentToStatus(progressPercent);
     const sourceNoteTags =
       input.sourceNoteId ? this.noteRepository.getTagNamesForNote(input.sourceNoteId) : [];
     const tags = sanitizeTags(input.tags ?? sourceNoteTags);
     this.taskRepository.create({
       id: crypto.randomUUID(),
       title: input.title.trim(),
-      status: input.status ?? "open",
-      isTodayTask: input.status === "done" ? false : (input.isTodayTask ?? false),
+      status: nextStatus,
+      isTodayTask: nextStatus === "done" ? false : (input.isTodayTask ?? false),
+      estimatedHours: normalizeEstimatedHours(input.estimatedHours),
+      progressPercent,
       tags,
       startTargetDate: normalizeDate(input.startTargetDate),
       dueDate: normalizeDate(input.dueDate),
@@ -105,13 +180,24 @@ export class TaskService {
     }
 
     const nextTitle = input.title !== undefined ? input.title.trim() : existing.title;
-    const nextStatus = input.status ?? existing.status;
+    const nextProgressPercent = normalizeProgressPercent(
+      input.progressPercent,
+      input.status,
+    );
+    const resolvedProgressPercent =
+      input.progressPercent !== undefined || input.status !== undefined
+        ? nextProgressPercent
+        : existing.progressPercent;
+    const nextStatus = progressPercentToStatus(resolvedProgressPercent);
     const nextIsTodayTask =
       nextStatus === "done"
         ? false
         : input.isTodayTask !== undefined
           ? input.isTodayTask
           : existing.isTodayTask;
+    const nextEstimatedHours = normalizeEstimatedHours(
+      input.estimatedHours !== undefined ? input.estimatedHours : existing.estimatedHours,
+    );
     const nextTags = sanitizeTags(input.tags ?? existing.tags);
     const nextSourceNoteId =
       input.sourceNoteId !== undefined ? input.sourceNoteId : existing.sourceNoteId;
@@ -133,8 +219,6 @@ export class TaskService {
       throw new HttpError(400, "VALIDATION_ERROR", "task title is too long");
     }
 
-    assertStatus(nextStatus);
-
     if (input.isTodayTask !== undefined && typeof input.isTodayTask !== "boolean") {
       throw new HttpError(400, "VALIDATION_ERROR", "isTodayTask must be a boolean");
     }
@@ -148,6 +232,8 @@ export class TaskService {
       title: nextTitle,
       status: nextStatus,
       isTodayTask: nextIsTodayTask,
+      estimatedHours: nextEstimatedHours,
+      progressPercent: resolvedProgressPercent,
       tags: nextTags,
       sourceNoteId: nextSourceNoteId ?? null,
       startTargetDate: nextStartTargetDate,
@@ -184,6 +270,18 @@ export class TaskService {
 
     if (input.isTodayTask !== undefined && typeof input.isTodayTask !== "boolean") {
       throw new HttpError(400, "VALIDATION_ERROR", "isTodayTask must be a boolean");
+    }
+
+    if (input.estimatedHours !== undefined && input.estimatedHours !== null) {
+      if (typeof input.estimatedHours !== "number") {
+        throw new HttpError(400, "VALIDATION_ERROR", "estimatedHours must be a number");
+      }
+    }
+
+    if (input.progressPercent !== undefined) {
+      if (typeof input.progressPercent !== "number") {
+        throw new HttpError(400, "VALIDATION_ERROR", "progressPercent must be a number");
+      }
     }
 
     if (

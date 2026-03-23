@@ -7,6 +7,8 @@ type TaskRow = {
   status: "open" | "done";
   workflow_stage: "open" | "in_progress";
   is_today_task: number;
+  estimated_hours: number | null;
+  progress_percent: number;
   start_target_date: string | null;
   due_date: string | null;
   note_text: string | null;
@@ -20,6 +22,18 @@ type TaskRow = {
 
 export class TaskRepository {
   constructor(private readonly db: AppDatabase) {}
+
+  private toTaskStatus(progressPercent: number): TaskStatus {
+    if (progressPercent >= 100) {
+      return "done";
+    }
+
+    if (progressPercent > 0) {
+      return "in_progress";
+    }
+
+    return "open";
+  }
 
   private toDatabaseStatus(status: TaskStatus) {
     return {
@@ -38,6 +52,8 @@ export class TaskRepository {
           tasks.status,
           tasks.workflow_stage,
           tasks.is_today_task,
+          tasks.estimated_hours,
+          tasks.progress_percent,
           tasks.start_target_date,
           tasks.due_date,
           tasks.note_text,
@@ -60,8 +76,10 @@ export class TaskRepository {
     return rows.map((row) => ({
       id: row.id,
       title: row.title,
-      status: row.status === "done" ? "done" : row.workflow_stage,
+      status: this.toTaskStatus(row.progress_percent),
       isTodayTask: Boolean(row.is_today_task),
+      estimatedHours: row.estimated_hours,
+      progressPercent: row.progress_percent,
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
@@ -85,6 +103,8 @@ export class TaskRepository {
           tasks.status,
           tasks.workflow_stage,
           tasks.is_today_task,
+          tasks.estimated_hours,
+          tasks.progress_percent,
           tasks.start_target_date,
           tasks.due_date,
           tasks.note_text,
@@ -109,8 +129,10 @@ export class TaskRepository {
     return {
       id: row.id,
       title: row.title,
-      status: row.status === "done" ? "done" : row.workflow_stage,
+      status: this.toTaskStatus(row.progress_percent),
       isTodayTask: Boolean(row.is_today_task),
+      estimatedHours: row.estimated_hours,
+      progressPercent: row.progress_percent,
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
@@ -129,6 +151,8 @@ export class TaskRepository {
     title: string;
     status: TaskStatus;
     isTodayTask: boolean;
+    estimatedHours: number | null;
+    progressPercent: number;
     sourceNoteId: string | null;
     sourceSelectionText: string | null;
     tags: { name: string; normalizedName: string }[];
@@ -150,6 +174,8 @@ export class TaskRepository {
           status,
           workflow_stage,
           is_today_task,
+          estimated_hours,
+          progress_percent,
           start_target_date,
           due_date,
           note_text,
@@ -165,6 +191,8 @@ export class TaskRepository {
           @dbStatus,
           @workflowStage,
           @isTodayTask,
+          @estimatedHours,
+          @progressPercent,
           @startTargetDate,
           @dueDate,
           @noteText,
@@ -190,6 +218,8 @@ export class TaskRepository {
     title: string;
     status: TaskStatus;
     isTodayTask: boolean;
+    estimatedHours: number | null;
+    progressPercent: number;
     tags: { name: string; normalizedName: string }[];
     startTargetDate: string | null;
     dueDate: string | null;
@@ -207,6 +237,8 @@ export class TaskRepository {
             status = @dbStatus,
             workflow_stage = @workflowStage,
             is_today_task = @isTodayTask,
+            estimated_hours = @estimatedHours,
+            progress_percent = @progressPercent,
             start_target_date = @startTargetDate,
             due_date = @dueDate,
             note_text = @noteText,

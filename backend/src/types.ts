@@ -129,6 +129,8 @@ export type TaskItem = {
   title: string;
   status: TaskStatus;
   isTodayTask: boolean;
+  estimatedHours: number | null;
+  progressPercent: number;
   tags: string[];
   startTargetDate: string | null;
   dueDate: string | null;
@@ -145,6 +147,8 @@ export type TaskInput = {
   title: string;
   status?: TaskStatus;
   isTodayTask?: boolean;
+  estimatedHours?: number | null;
+  progressPercent?: number;
   tags?: string[];
   startTargetDate?: string | null;
   dueDate?: string | null;
@@ -162,6 +166,8 @@ export type TaskUpdateInput = {
   title?: string;
   status?: TaskStatus;
   isTodayTask?: boolean;
+  estimatedHours?: number | null;
+  progressPercent?: number;
   tags?: string[];
   startTargetDate?: string | null;
   dueDate?: string | null;

@@ -11,8 +11,6 @@ const frontendDir = path.join(rootDir, "frontend");
 const backendDir = path.join(rootDir, "backend");
 const frontendNodeModules = path.join(frontendDir, "node_modules");
 const backendNodeModules = path.join(backendDir, "node_modules");
-const frontendDist = path.join(frontendDir, "dist", "index.html");
-const backendDist = path.join(backendDir, "dist", "index.js");
 
 function getCommandName(baseCommand) {
   return process.platform === "win32" ? `${baseCommand}.cmd` : baseCommand;
@@ -95,13 +93,8 @@ async function installDependenciesIfNeeded() {
   }
 }
 
-async function buildIfNeeded() {
-  if (fs.existsSync(frontendDist) && fs.existsSync(backendDist)) {
-    console.log("Build artifacts already exist. Skipping build.");
-    return;
-  }
-
-  console.log("Build artifacts are missing. Running production build...");
+async function rebuildApp() {
+  console.log("Running production build to sync the latest source changes...");
   await runCommand(process.execPath, [path.join(rootDir, "scripts", "build-app.mjs")], rootDir);
 }
 
@@ -118,7 +111,7 @@ async function main() {
   console.log(`Chrome found at: ${chromePath}`);
 
   await installDependenciesIfNeeded();
-  await buildIfNeeded();
+  await rebuildApp();
 
   console.log("");
   console.log("memo4me setup completed.");

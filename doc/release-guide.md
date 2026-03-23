@@ -67,7 +67,7 @@ node scripts/build-app.mjs
 
 は不要です。
 
-利用者側の `install-*` が依存導入と build を行います。
+利用者側の `install-*` が依存導入と最新ソースからの build を毎回行います。
 
 ### 4.3 zip の分け方
 
@@ -91,6 +91,7 @@ node scripts/build-app.mjs
 - Chrome 必須であること
 - Node / npm が必要であること
 - 初回は `install-*` を実行すること
+- 更新後も `install-*` を一度実行し、最新 build を作り直すこと
 - 更新時は新しい zip を展開して使うこと
 - 自動更新はまだないこと
 

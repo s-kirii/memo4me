@@ -1303,7 +1303,7 @@ MVP では以下のいずれかを採用する。
 
 - `node scripts/build-app.mjs` で frontend / backend の本番ビルドを作成する
 - `node scripts/start-app.mjs` で backend の起動、静的フロント配信、Chrome 起動をまとめて行う
-- `node scripts/install-app.mjs` で初回セットアップ確認を行う
+- `node scripts/install-app.mjs` で依存確認と最新ソースからの build を行う
 - macOS / Windows には薄いランチャーを置き、本体ロジックは Node スクリプトに寄せる
 
 起動仕様:

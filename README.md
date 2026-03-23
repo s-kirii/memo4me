@@ -140,12 +140,17 @@ Chrome が見つからない場合は起動失敗になる。
 - `install-*`
   - Node / npm / Chrome の存在確認
   - `node_modules` がなければ `npm install`
-  - build 成果物がなければ `node scripts/build-app.mjs`
+  - 毎回 `node scripts/build-app.mjs` を実行して最新ソースから build し直す
 - `start-*`
   - `node scripts/start-app.mjs` を呼び出し
   - backend 起動、静的フロント配信、Chrome 起動を行う
 
 まず初回は `install-*` を実行し、その後 `start-*` で起動する。
+
+補足:
+
+- リポジトリを `pull` したあとも、`install-*` を一度実行すると最新 UI / 最新 build が反映される
+- DB スキーマ変更を含む更新は、`start-*` 実行時に backend 起動処理の migration で反映される
 
 本番起動後は、画面上部の電源ボタン `⏻` を押すとアプリを安全終了できる。終了後、タブは自動で閉じない場合があるため、その場合は画面の案内に従って手動で閉じる。
 

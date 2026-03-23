@@ -131,7 +131,6 @@ function isDraftDirty(draft: EditorDraft, selectedNote: NoteDetail | null) {
 }
 
 function App() {
-  const isElectronDesktop = Boolean(window.memo4meDesktop?.isElectron);
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<NoteDetail | null>(null);
@@ -178,8 +177,6 @@ function App() {
   );
   const [relatedTasks, setRelatedTasks] = useState<TaskItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [exitMessage, setExitMessage] = useState<string | null>(null);
-  const [isExiting, setIsExiting] = useState(false);
 
   const saveTimerRef = useRef<number | null>(null);
   const listReloadTimerRef = useRef<number | null>(null);
@@ -587,40 +584,6 @@ function App() {
     setTaskNavigationRequestKey(0);
   };
 
-  const handleExitApp = async () => {
-    const confirmed = window.confirm("アプリを終了しますか？");
-    if (!confirmed) {
-      return;
-    }
-
-    setIsExiting(true);
-    setErrorMessage(null);
-
-    try {
-      await persistDraft();
-
-      if (isElectronDesktop && window.memo4meDesktop) {
-        await window.memo4meDesktop.quitApp();
-        return;
-      }
-
-      const response = await request<{ ok: true; message: string }>("/app/shutdown", {
-        method: "POST",
-      });
-
-      setExitMessage(response.message);
-
-      window.setTimeout(() => {
-        window.close();
-      }, 250);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "アプリの終了に失敗しました",
-      );
-      setIsExiting(false);
-    }
-  };
-
   const addTagByName = (rawTag: string) => {
     const nextTag = rawTag.trim();
     if (!nextTag) {
@@ -909,16 +872,6 @@ function App() {
               </div>
             ) : null}
           </div>
-          <button
-            type="button"
-            className="ghost-button danger-button power-button"
-            onClick={() => void handleExitApp()}
-            disabled={isExiting}
-            aria-label="アプリを終了"
-            title="アプリを終了"
-          >
-            <span aria-hidden="true">{isExiting ? "◔" : "⏻"}</span>
-          </button>
         </div>
       </header>
 
@@ -1290,12 +1243,6 @@ function App() {
           request={request}
         />
       </main>
-
-      {exitMessage && !isElectronDesktop ? (
-        <div className="exit-banner" role="status">
-          <strong>アプリを終了しました。</strong> {exitMessage}
-        </div>
-      ) : null}
 
       <AppearanceModal
         isOpen={isAppearanceOpen}

@@ -39,15 +39,14 @@
   - `memo4me.app`
   - `memo4me-<version>-mac-arm64.dmg`
 - Windows
-  - `memo4me.exe`
   - `memo4me-<version>-win-arm64.exe`
 
 補足:
 
 - `dist-electron/` の生成物を元に配布する
 - Windows installer は NSIS
-- Windows の unpacked `memo4me.exe` は、同じフォルダ一式のまま使う
-- 利用者向けの通常配布は installer `.exe` を優先する
+- `win-arm64-unpacked/` は確認用の生成物として残る
+- 利用者向けの通常配布は installer `.exe` を使う
 
 ### 3.2 browser-mode
 
@@ -91,7 +90,6 @@ npm run electron:build:win
 
 - `dist-electron/mac-arm64/memo4me.app`
 - `dist-electron/memo4me-<version>-mac-arm64.dmg`
-- `dist-electron/win-arm64-unpacked/memo4me.exe`
 - `dist-electron/memo4me-<version>-win-arm64.exe`
 
 前提環境:

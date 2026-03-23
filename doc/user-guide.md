@@ -78,8 +78,8 @@
 
 補足:
 
-- `win-arm64-unpacked/memo4me.exe` は、その `.exe` だけではなく同じフォルダ一式のまま使います
 - 通常の利用者向けには installer `.exe` を配る前提です
+- `win-arm64-unpacked/` は確認用の生成物で、通常配布の本線ではありません
 
 補足:
 

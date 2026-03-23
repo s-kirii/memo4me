@@ -47,8 +47,8 @@
     },
     "win": {
       "icon": "assets/icon.ico",
+      "executableName": "memo4me",
       "target": [
-        "portable",
         "nsis"
       ]
     },

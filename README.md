@@ -123,7 +123,7 @@ npm run electron:build
 - `frontend/dist` と `backend/dist` を再 build する
 - Electron の配布物を `dist-electron/` に出力する
 - Electron 起動時は bundled backend を内部起動し、外部 Chrome は不要
-- アプリ内の電源ボタン `⏻` は Electron ではウィンドウ終了と app quit に接続される
+- Electron 版はウィンドウ左上の `×` でアプリと bundled backend をまとめて終了する
 
 生成物の例:
 
@@ -131,7 +131,6 @@ npm run electron:build
   - `dist-electron/mac-arm64/memo4me.app`
   - `dist-electron/memo4me-1.0.0-mac-arm64.dmg`
 - Windows
-  - `dist-electron/win-arm64-unpacked/memo4me.exe`
   - `dist-electron/memo4me-1.0.0-win-arm64.exe`
 
 現在の前提環境:
@@ -147,8 +146,8 @@ npm run electron:build
 
 - Intel / AMD 向け Windows (`x64`) はまだ未対応
 - Apple Silicon 以外の macOS 配布物もまだ未対応
-- Windows の `win-arm64-unpacked/memo4me.exe` は、その `.exe` 単体ではなく同じフォルダ一式のまま使う
-- Windows installer `.exe` は、ダブルクリックしてインストール手順を進めればよい
+- Windows の通常配布は installer `.exe` を使う
+- `win-arm64-unpacked/` は確認用の生成物で、利用者配布の本線ではない
 
 ## AI 機能の現在地
 

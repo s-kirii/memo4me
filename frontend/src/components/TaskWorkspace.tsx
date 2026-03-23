@@ -52,8 +52,6 @@ type ForecastDay = {
   contributions: ForecastContribution[];
 };
 
-const PROGRESS_OPTIONS = Array.from({ length: 11 }, (_, index) => index * 10);
-
 type TaskWorkspaceProps = {
   isActive: boolean;
   currentNoteId: string | null;
@@ -255,6 +253,15 @@ function getForecastDayLevel(totalHours: number): ForecastDayLevel {
 
 function formatForecastHours(value: number) {
   return `${value.toFixed(1)}h`;
+}
+
+function normalizeProgressPercent(value: number) {
+  if (Number.isNaN(value)) {
+    return 0;
+  }
+
+  const clamped = Math.min(100, Math.max(0, value));
+  return Math.round(clamped / 5) * 5;
 }
 
 export function TaskWorkspace({
@@ -627,23 +634,24 @@ export function TaskWorkspace({
     );
   };
 
-  const renderProgressToggle = (
+  const renderProgressStepper = (
     value: number,
     onChange: (nextValue: number) => void,
     ariaLabel: string,
   ) => (
-    <div className="task-progress-toggle" role="group" aria-label={ariaLabel}>
-      {PROGRESS_OPTIONS.map((option) => (
-        <button
-          key={option}
-          type="button"
-          className={`task-progress-toggle-item${value === option ? " is-active" : ""}`}
-          onClick={() => onChange(option)}
-        >
-          {option}%
-        </button>
-      ))}
-    </div>
+    <input
+      type="number"
+      className="task-progress-stepper"
+      min="0"
+      max="100"
+      step="5"
+      value={value}
+      aria-label={ariaLabel}
+      onChange={(event) => {
+        const nextValue = normalizeProgressPercent(Number(event.target.value));
+        onChange(nextValue);
+      }}
+    />
   );
 
   const filteredTasks = useMemo(() => {
@@ -1026,7 +1034,7 @@ export function TaskWorkspace({
             <div className="task-detail-progress-row">
               <div className="task-inline-field task-inline-field-progress">
                 <span>進捗率</span>
-                {renderProgressToggle(
+                {renderProgressStepper(
                   taskProgressPercents[task.id] ?? task.progressPercent,
                   (nextValue) => {
                     setTaskProgressPercents((current) => ({
@@ -1253,9 +1261,9 @@ export function TaskWorkspace({
 
       <div className="task-create-progress">
         <span>進捗率</span>
-        {renderProgressToggle(
+        {renderProgressStepper(
           newTaskProgressPercent,
-          setNewTaskProgressPercent,
+          (nextValue) => setNewTaskProgressPercent(normalizeProgressPercent(nextValue)),
           "新規タスクの進捗率",
         )}
       </div>

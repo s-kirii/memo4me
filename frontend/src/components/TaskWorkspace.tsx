@@ -45,6 +45,7 @@ type ForecastDay = {
   key: string;
   label: string;
   shortLabel: string;
+  weekdayLabel: string;
   totalHours: number;
   level: ForecastDayLevel;
   contributions: ForecastContribution[];
@@ -800,6 +801,9 @@ export function TaskWorkspace({
           month: "2-digit",
           day: "2-digit",
         }).format(date),
+        weekdayLabel: new Intl.DateTimeFormat("ja-JP", {
+          weekday: "short",
+        }).format(date),
         totalHours: 0,
         level: "safe" as ForecastDayLevel,
         contributions: [] as ForecastContribution[],
@@ -809,6 +813,7 @@ export function TaskWorkspace({
     const daysByKey = new Map(days.map((day) => [day.key, day]));
     let unestimatedCount = 0;
     let unscheduledCount = 0;
+    let forecastableTaskCount = 0;
 
     for (const task of filteredTasks) {
       if (task.status === "done") {
@@ -831,14 +836,15 @@ export function TaskWorkspace({
         continue;
       }
 
+      forecastableTaskCount += 1;
+
       const startTargetDate = parseDateOnly(task.startTargetDate);
       const effectiveStart =
         startTargetDate && startTargetDate.getTime() > today.getTime() ? startTargetDate : today;
       const effectiveEnd = dueDate.getTime() < today.getTime() ? today : dueDate;
       const rangeStart =
         effectiveEnd.getTime() < effectiveStart.getTime() ? effectiveEnd : effectiveStart;
-      const rangeEnd =
-        effectiveEnd.getTime() < effectiveStart.getTime() ? effectiveEnd : effectiveEnd;
+      const rangeEnd = effectiveEnd;
       const remainingDays =
         Math.max(
           1,
@@ -885,6 +891,7 @@ export function TaskWorkspace({
       days,
       unestimatedCount,
       unscheduledCount,
+      forecastableTaskCount,
       highestRiskDay,
     };
   }, [filteredTasks, forecastMode]);
@@ -1302,10 +1309,12 @@ export function TaskWorkspace({
             <span className="task-forecast-label">炎上予報</span>
             <strong>{getForecastLabel(forecast.highestRiskDay?.level ?? "safe")}</strong>
             <p>
-              {forecast.highestRiskDay
+              {forecast.highestRiskDay && forecast.highestRiskDay.totalHours > 0
                 ? `${forecast.highestRiskDay.label} ${formatForecastHours(
                     forecast.highestRiskDay.totalHours,
                   )}`
+                : forecast.unestimatedCount > 0 || forecast.unscheduledCount > 0
+                  ? `予報対象外 ${forecast.unestimatedCount + forecast.unscheduledCount} 件`
                 : "大きな詰まりはありません"}
             </p>
           </div>
@@ -1414,28 +1423,58 @@ export function TaskWorkspace({
               </div>
             </div>
             <div className="task-forecast-summary">
-              <strong>{forecast.highestRiskDay ? forecast.highestRiskDay.label : "予報なし"}</strong>
-              <span>
-                {forecast.highestRiskDay
-                  ? `${getForecastLabel(forecast.highestRiskDay.level)} / ${formatForecastHours(
-                      forecast.highestRiskDay.totalHours,
+              <strong>
+                {forecast.highestRiskDay && forecast.highestRiskDay.totalHours > 0
+                  ? `${forecast.highestRiskDay.label} ${getForecastLabel(
+                      forecast.highestRiskDay.level,
                     )}`
-                  : "大きな詰まりはありません"}
-              </span>
+                  : "週間の負荷を表示します"}
+              </strong>
+              <span>{`予報対象 ${forecast.forecastableTaskCount} 件`}</span>
             </div>
-            <div className="task-forecast-days">
-              {forecast.days.map((day) => (
-                <button
-                  key={day.key}
-                  type="button"
-                  className={`task-forecast-day is-${day.level}`}
-                  onClick={() => setActiveForecastDay(day)}
-                >
-                  <span>{day.shortLabel}</span>
-                  <strong>{formatForecastHours(day.totalHours)}</strong>
-                </button>
-              ))}
-            </div>
+            {forecast.mode === "weekly" ? (
+              <div className="task-forecast-table" role="table" aria-label="週間炎上予報">
+                <div className="task-forecast-table-head" role="row">
+                  <span role="columnheader">日付</span>
+                  <span role="columnheader">必要時間</span>
+                  <span role="columnheader">判定</span>
+                </div>
+                <div className="task-forecast-table-body">
+                  {forecast.days.map((day) => (
+                    <button
+                      key={day.key}
+                      type="button"
+                      className={`task-forecast-table-row is-${day.level}`}
+                      onClick={() => setActiveForecastDay(day)}
+                    >
+                      <span className="task-forecast-table-date">
+                        {day.shortLabel}
+                        <small>{day.weekdayLabel}</small>
+                      </span>
+                      <strong>{formatForecastHours(day.totalHours)}</strong>
+                      <span className={`task-forecast-badge is-${day.level}`}>
+                        {getForecastLabel(day.level)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="task-forecast-days">
+                {forecast.days.map((day) => (
+                  <button
+                    key={day.key}
+                    type="button"
+                    className={`task-forecast-day is-${day.level}`}
+                    onClick={() => setActiveForecastDay(day)}
+                  >
+                    <span>{day.shortLabel}</span>
+                    <small>{day.weekdayLabel}</small>
+                    <strong>{formatForecastHours(day.totalHours)}</strong>
+                  </button>
+                ))}
+              </div>
+            )}
             <ul className="task-dashboard-list">
               <li>期限超過: {allMetrics.overdueCount} 件</li>
               <li>本日期限: {allMetrics.dueTodayCount} 件</li>

@@ -77,7 +77,7 @@ export class PlatformSecretStore {
 
     if (isWindows()) {
       const script =
-        "[Convert]::ToBase64String([Security.Cryptography.ProtectedData]::Protect([Text.Encoding]::UTF8.GetBytes($env:MEMO4ME_SECRET), $null, [Security.Cryptography.DataProtectionScope]::CurrentUser))";
+        "[Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect([System.Text.Encoding]::UTF8.GetBytes($env:MEMO4ME_SECRET), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))";
       const encrypted = runCommand(
         "powershell.exe",
         ["-NoProfile", "-NonInteractive", "-Command", script],
@@ -119,7 +119,7 @@ export class PlatformSecretStore {
 
     if (meta.storage === "dpapi" && isWindows()) {
       const script =
-        "[Text.Encoding]::UTF8.GetString([Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($env:MEMO4ME_SECRET_REF), $null, [Security.Cryptography.DataProtectionScope]::CurrentUser))";
+        "[System.Text.Encoding]::UTF8.GetString([System.Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($env:MEMO4ME_SECRET_REF), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))";
 
       try {
         return runCommand(

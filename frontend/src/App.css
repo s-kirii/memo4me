@@ -2216,6 +2216,7 @@
   justify-content: space-between;
   gap: 8px;
   margin-top: 10px;
+  flex-wrap: wrap;
 }
 
 .task-forecast-summary strong {
@@ -2230,7 +2231,7 @@
 
 .task-forecast-days {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin-top: 10px;
 }
@@ -2246,11 +2247,17 @@
   background: color-mix(in srgb, var(--color-surface-input) 84%, transparent);
   color: var(--color-text);
   font: inherit;
+  text-align: left;
 }
 
 .task-forecast-day span {
   color: var(--color-muted);
   font-size: 0.72rem;
+}
+
+.task-forecast-day small {
+  color: var(--color-muted);
+  font-size: 0.68rem;
 }
 
 .task-forecast-day strong {
@@ -2269,6 +2276,103 @@
 .task-forecast-day.is-risk {
   border-color: color-mix(in srgb, #c96e68 46%, var(--color-line));
   background: color-mix(in srgb, #efc1bb 18%, var(--color-surface-card));
+}
+
+.task-forecast-table {
+  margin-top: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-line) 84%, transparent);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface-input) 86%, transparent);
+}
+
+.task-forecast-table-head,
+.task-forecast-table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(72px, 0.8fr) minmax(64px, 0.7fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.task-forecast-table-head {
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--color-surface-card) 88%, transparent);
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.task-forecast-table-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.task-forecast-table-row {
+  padding: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--color-line) 74%, transparent);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+}
+
+.task-forecast-table-row:first-child {
+  border-top: none;
+}
+
+.task-forecast-table-row strong {
+  font-size: 0.86rem;
+}
+
+.task-forecast-table-row.is-safe {
+  background: color-mix(in srgb, #d9efe1 22%, var(--color-surface-card));
+}
+
+.task-forecast-table-row.is-watch {
+  background: color-mix(in srgb, #f6e7b2 34%, var(--color-surface-card));
+}
+
+.task-forecast-table-row.is-risk {
+  background: color-mix(in srgb, #f0cbc7 34%, var(--color-surface-card));
+}
+
+.task-forecast-table-date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 700;
+}
+
+.task-forecast-table-date small {
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.task-forecast-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.task-forecast-badge.is-safe {
+  background: color-mix(in srgb, #d9efe1 68%, transparent);
+  color: #527a64;
+}
+
+.task-forecast-badge.is-watch {
+  background: color-mix(in srgb, #f6e7b2 72%, transparent);
+  color: #8b6b22;
+}
+
+.task-forecast-badge.is-risk {
+  background: color-mix(in srgb, #f0cbc7 72%, transparent);
+  color: #9d514a;
 }
 
 .task-dashboard-card-header,

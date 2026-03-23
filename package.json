@@ -57,7 +57,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "memo4me"
+      "shortcutName": "memo4me",
+      "runAfterFinish": false
     }
   }
 }

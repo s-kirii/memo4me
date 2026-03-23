@@ -148,6 +148,7 @@ npm run electron:build
 - Apple Silicon 以外の macOS 配布物もまだ未対応
 - Windows の通常配布は installer `.exe` を使う
 - `win-arm64-unpacked/` は確認用の生成物で、利用者配布の本線ではない
+- Windows installer は、完了画面の自動起動ではなくインストール後のショートカット起動を前提にする
 
 ## AI 機能の現在地
 

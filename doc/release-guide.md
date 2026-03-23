@@ -47,6 +47,7 @@
 - Windows installer は NSIS
 - `win-arm64-unpacked/` は確認用の生成物として残る
 - 利用者向けの通常配布は installer `.exe` を使う
+- installer 完了画面からの自動起動には依存せず、インストール後のショートカット起動を案内する
 
 ### 3.2 browser-mode
 

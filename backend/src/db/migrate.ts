@@ -20,10 +20,11 @@ export function runMigrations(db: AppDatabase) {
     .sort();
 
   const applied = new Set<string>(
-    db
-      .prepare("SELECT version FROM schema_migrations")
-      .all()
-      .map((row) => (row as { version: string }).version),
+    (
+      db.prepare("SELECT version FROM schema_migrations").all() as Array<{
+        version: string;
+      }>
+    ).map((row) => row.version),
   );
 
   const insertMigration = db.prepare(`

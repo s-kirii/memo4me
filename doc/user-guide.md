@@ -55,7 +55,7 @@
 セットアップで行うこと:
 
 - Node / npm / Chrome の存在確認
-- `node_modules` がなければ `npm install`
+- `node_modules` がない、または `package.json` / `package-lock.json` が更新されていれば `npm install`
 - 毎回、最新ソースから本番ビルドを作り直す
 
 ## 4. 起動方法

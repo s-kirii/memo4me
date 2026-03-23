@@ -11,6 +11,14 @@ const frontendDir = path.join(rootDir, "frontend");
 const backendDir = path.join(rootDir, "backend");
 const frontendNodeModules = path.join(frontendDir, "node_modules");
 const backendNodeModules = path.join(backendDir, "node_modules");
+const frontendManifestPaths = [
+  path.join(frontendDir, "package.json"),
+  path.join(frontendDir, "package-lock.json"),
+];
+const backendManifestPaths = [
+  path.join(backendDir, "package.json"),
+  path.join(backendDir, "package-lock.json"),
+];
 
 function getCommandName(baseCommand) {
   return process.platform === "win32" ? `${baseCommand}.cmd` : baseCommand;
@@ -75,17 +83,38 @@ function ensureCommandExists(command) {
   });
 }
 
+function getLatestTimestamp(paths) {
+  return paths.reduce((latest, targetPath) => {
+    if (!fs.existsSync(targetPath)) {
+      return latest;
+    }
+
+    return Math.max(latest, fs.statSync(targetPath).mtimeMs);
+  }, 0);
+}
+
+function shouldInstallDependencies(nodeModulesPath, manifestPaths) {
+  if (!fs.existsSync(nodeModulesPath)) {
+    return true;
+  }
+
+  const nodeModulesTimestamp = fs.statSync(nodeModulesPath).mtimeMs;
+  const manifestTimestamp = getLatestTimestamp(manifestPaths);
+
+  return manifestTimestamp > nodeModulesTimestamp;
+}
+
 async function installDependenciesIfNeeded() {
   const npmCommand = getCommandName("npm");
 
-  if (!fs.existsSync(frontendNodeModules)) {
+  if (shouldInstallDependencies(frontendNodeModules, frontendManifestPaths)) {
     console.log("Installing frontend dependencies...");
     await runCommand(npmCommand, ["install"], frontendDir);
   } else {
     console.log("Frontend dependencies already exist. Skipping.");
   }
 
-  if (!fs.existsSync(backendNodeModules)) {
+  if (shouldInstallDependencies(backendNodeModules, backendManifestPaths)) {
     console.log("Installing backend dependencies...");
     await runCommand(npmCommand, ["install"], backendDir);
   } else {

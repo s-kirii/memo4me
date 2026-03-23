@@ -139,7 +139,7 @@ Chrome が見つからない場合は起動失敗になる。
 
 - `install-*`
   - Node / npm / Chrome の存在確認
-  - `node_modules` がなければ `npm install`
+  - `node_modules` がない、または `package.json` / `package-lock.json` が更新されていれば `npm install`
   - 毎回 `node scripts/build-app.mjs` を実行して最新ソースから build し直す
 - `start-*`
   - `node scripts/start-app.mjs` を呼び出し

@@ -10,7 +10,8 @@
     "electron:dev": "node scripts/electron-dev.mjs",
     "electron:build": "node scripts/electron-build.mjs",
     "electron:build:mac": "node scripts/electron-build.mjs --mac",
-    "electron:build:win": "node scripts/electron-build.mjs --win"
+    "electron:build:win": "node scripts/electron-build.mjs --win --arm64",
+    "electron:build:win:x64": "node scripts/electron-build.mjs --win --x64"
   },
   "devDependencies": {
     "electron": "^41.0.3",

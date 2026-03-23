@@ -25,8 +25,7 @@
 - 自動更新機能はまだありません
 - `git clone` は前提ではありません
 - GitHub Releases から zip をダウンロードして使う想定です
-- 現在の Electron 配布物は `mac-arm64` / `win-arm64` 前提です
-- Intel / AMD 向け Windows (`x64`) はまだ未対応です
+- 現在の Electron 配布物は `mac-arm64` / `win-arm64` / `win-x64` を想定しています
 
 ## 3. 導入方法
 
@@ -74,7 +73,7 @@
 
 前提:
 
-- ARM64 の Windows PC を想定しています
+- ARM64 または x64 の Windows PC を想定しています
 
 補足:
 

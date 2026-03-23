@@ -132,6 +132,7 @@ npm run electron:build
   - `dist-electron/memo4me-1.0.0-mac-arm64.dmg`
 - Windows
   - `dist-electron/memo4me-1.0.0-win-arm64.exe`
+  - `dist-electron/memo4me-1.0.0-win-x64.exe`
 
 現在の前提環境:
 
@@ -139,12 +140,11 @@ npm run electron:build
   - Apple Silicon (`arm64`) 前提
   - 生成物は `mac-arm64` 向け
 - Windows
-  - ARM64 前提
-  - 生成物は `win-arm64` 向け
+  - ARM64 または x64 前提
+  - 生成物は `win-arm64` / `win-x64` 向け
 
 補足:
 
-- Intel / AMD 向け Windows (`x64`) はまだ未対応
 - Apple Silicon 以外の macOS 配布物もまだ未対応
 - Windows の通常配布は installer `.exe` を使う
 - `win-arm64-unpacked/` は確認用の生成物で、利用者配布の本線ではない

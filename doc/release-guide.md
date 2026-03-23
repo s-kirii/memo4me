@@ -26,8 +26,7 @@
 - 自動更新はまだ入れない
 - アプリ本体と個人データは分離して保持する
 - 将来 Web 版も見据え、配布物固有ロジックは Electron shell に閉じ込める
-- 現在の配布物は `mac-arm64` / `win-arm64` 前提で作成している
-- Intel / AMD 向け Windows (`x64`) はまだ未対応
+- 現在の配布物は `mac-arm64` / `win-arm64` / `win-x64` を対象にしている
 
 ## 3. 配布物に含めるもの
 
@@ -40,6 +39,7 @@
   - `memo4me-<version>-mac-arm64.dmg`
 - Windows
   - `memo4me-<version>-win-arm64.exe`
+  - `memo4me-<version>-win-x64.exe`
 
 補足:
 
@@ -79,11 +79,12 @@
 ```bash
 npm run electron:build:mac
 npm run electron:build:win
+npm run electron:build:win:x64
 ```
 
 ### 4.2 配布物の準備
 
-1. `npm run electron:build:mac` / `npm run electron:build:win` を実行する
+1. `npm run electron:build:mac` / `npm run electron:build:win` / `npm run electron:build:win:x64` を実行する
 2. `dist-electron/` の成果物を確認する
 3. 配布対象だけを Release に添付する
 
@@ -92,11 +93,12 @@ npm run electron:build:win
 - `dist-electron/mac-arm64/memo4me.app`
 - `dist-electron/memo4me-<version>-mac-arm64.dmg`
 - `dist-electron/memo4me-<version>-win-arm64.exe`
+- `dist-electron/memo4me-<version>-win-x64.exe`
 
 前提環境:
 
 - macOS: Apple Silicon (`arm64`)
-- Windows: ARM64
+- Windows: ARM64 または x64
 
 配布対象外:
 

@@ -33,6 +33,18 @@ function run(command, args, options = {}) {
   });
 }
 
+function resolveTargetArch(cliArgs) {
+  if (cliArgs.includes("--x64")) {
+    return "x64";
+  }
+
+  if (cliArgs.includes("--arm64")) {
+    return "arm64";
+  }
+
+  return process.arch;
+}
+
 async function main() {
   await run(process.execPath, [path.join(rootDir, "scripts", "build-app.mjs")]);
 
@@ -44,6 +56,7 @@ async function main() {
   );
 
   const cliArgs = process.argv.slice(2);
+  const targetArch = resolveTargetArch(cliArgs);
   const builderArgs =
     cliArgs.length > 0
       ? [...cliArgs, "--publish", "never"]
@@ -60,7 +73,7 @@ async function main() {
         ...process.env,
         npm_config_runtime: "electron",
         npm_config_target: electronVersion,
-        npm_config_arch: process.arch,
+        npm_config_arch: targetArch,
         npm_config_disturl: "https://electronjs.org/headers",
       },
     });

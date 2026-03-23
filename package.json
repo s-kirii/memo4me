@@ -28,6 +28,7 @@
       "electron/**/*",
       "frontend/dist/**/*",
       "backend/dist/**/*",
+      "backend/migrations/**/*",
       "backend/node_modules/**/*",
       "backend/package.json",
       "package.json"

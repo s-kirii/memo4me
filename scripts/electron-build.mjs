@@ -1,10 +1,17 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const packageJson = JSON.parse(
+  fs.readFileSync(path.join(rootDir, "package.json"), "utf8"),
+);
+const electronVersion = String(
+  packageJson.devDependencies?.electron ?? "",
+).replace(/^[^\d]*/, "");
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -42,11 +49,34 @@ async function main() {
       ? [...cliArgs, "--publish", "never"]
       : process.platform === "darwin"
         ? ["--mac", "--publish", "never"]
-        : process.platform === "win32"
+      : process.platform === "win32"
           ? ["--win", "--publish", "never"]
           : ["--dir", "--publish", "never"];
 
-  await run(builderBinary, builderArgs);
+  try {
+    await run("npm", ["rebuild", "better-sqlite3"], {
+      cwd: path.join(rootDir, "backend"),
+      env: {
+        ...process.env,
+        npm_config_runtime: "electron",
+        npm_config_target: electronVersion,
+        npm_config_arch: process.arch,
+        npm_config_disturl: "https://electronjs.org/headers",
+      },
+    });
+
+    await run(builderBinary, builderArgs);
+  } finally {
+    await run("npm", ["rebuild", "better-sqlite3"], {
+      cwd: path.join(rootDir, "backend"),
+    }).catch((error) => {
+      console.error(
+        error instanceof Error
+          ? `Failed to restore backend better-sqlite3 for system Node: ${error.message}`
+          : "Failed to restore backend better-sqlite3 for system Node.",
+      );
+    });
+  }
 }
 
 main().catch((error) => {

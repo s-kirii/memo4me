@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fork } from "node:child_process";
+import { spawn } from "node:child_process";
 
 const host = process.env.HOST ?? "127.0.0.1";
 const port = process.env.PORT ?? "8787";
@@ -12,6 +14,22 @@ const devRendererUrl = process.env.ELECTRON_RENDERER_URL ?? "";
 let mainWindow = null;
 let backendProcess = null;
 let quitting = false;
+
+const desktopLogPath = path.join(
+  os.homedir(),
+  "Library",
+  "Logs",
+  "memo4me-desktop.log",
+);
+
+function logDesktop(message) {
+  const line = `[${new Date().toISOString()}] ${message}\n`;
+
+  try {
+    fs.mkdirSync(path.dirname(desktopLogPath), { recursive: true });
+    fs.appendFileSync(desktopLogPath, line);
+  } catch {}
+}
 
 function getAppRoot() {
   return app.getAppPath();
@@ -44,6 +62,7 @@ async function waitForUrl(url, label) {
 
 async function startBundledBackend() {
   if (backendProcess) {
+    logDesktop("backend already running, skipping start");
     return;
   }
 
@@ -51,18 +70,40 @@ async function startBundledBackend() {
   const backendEntry = path.join(appRoot, "backend", "dist", "index.js");
   const frontendDistDir = path.join(appRoot, "frontend", "dist");
 
-  backendProcess = fork(backendEntry, {
+  logDesktop(`appRoot=${appRoot}`);
+  logDesktop(`backendEntry=${backendEntry}`);
+  logDesktop(`frontendDistDir=${frontendDistDir}`);
+
+  backendProcess = spawn(process.execPath, [backendEntry], {
     cwd: appRoot,
     env: {
       ...process.env,
       HOST: host,
       PORT: port,
       FRONTEND_DIST_PATH: frontendDistDir,
+      ELECTRON_RUN_AS_NODE: "1",
     },
-    stdio: "inherit",
+  });
+
+  logDesktop(`spawned backend pid=${backendProcess.pid ?? "unknown"}`);
+
+  backendProcess.stdout?.on("data", (chunk) => {
+    logDesktop(`backend stdout: ${String(chunk).trim()}`);
+    process.stdout.write(chunk);
+  });
+
+  backendProcess.stderr?.on("data", (chunk) => {
+    logDesktop(`backend stderr: ${String(chunk).trim()}`);
+    process.stderr.write(chunk);
+  });
+
+  backendProcess.once("error", (error) => {
+    logDesktop(`backend error: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+    console.error("memo4me backend failed to start:", error);
   });
 
   backendProcess.once("exit", (code) => {
+    logDesktop(`backend exit code=${code ?? "null"}`);
     backendProcess = null;
 
     if (!quitting && code && code !== 0) {
@@ -79,6 +120,7 @@ async function startBundledBackend() {
 }
 
 async function createMainWindow() {
+  logDesktop("createMainWindow called");
   mainWindow = new BrowserWindow({
     width: 1480,
     height: 960,
@@ -99,12 +141,14 @@ async function createMainWindow() {
   });
 
   if (devRendererUrl) {
+    logDesktop(`loading dev renderer: ${devRendererUrl}`);
     await mainWindow.loadURL(devRendererUrl);
     mainWindow.webContents.openDevTools({ mode: "detach" });
     return;
   }
 
   await startBundledBackend();
+  logDesktop(`loading app url: ${appUrl}`);
   await mainWindow.loadURL(appUrl);
 }
 
@@ -139,6 +183,7 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(() => createMainWindow()).catch((error) => {
+  logDesktop(`app startup failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
   console.error(error);
   app.exit(1);
 });

@@ -94,12 +94,14 @@ async function main() {
 
   const electronProcess = spawnChild(electronBinary, ["."], {
     cwd: rootDir,
-    env: {
-      ...process.env,
-      ELECTRON_RENDERER_URL: "http://127.0.0.1:5173",
-      HOST: "127.0.0.1",
-      PORT: "8787",
-    },
+    env: Object.fromEntries(
+      Object.entries({
+        ...process.env,
+        ELECTRON_RENDERER_URL: "http://127.0.0.1:5173",
+        HOST: "127.0.0.1",
+        PORT: "8787",
+      }).filter(([key]) => key !== "ELECTRON_RUN_AS_NODE"),
+    ),
   });
 
   electronProcess.once("exit", (code) => {

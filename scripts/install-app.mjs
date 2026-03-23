@@ -18,9 +18,21 @@ function getCommandName(baseCommand) {
   return process.platform === "win32" ? `${baseCommand}.cmd` : baseCommand;
 }
 
+function resolveCommand(command, args) {
+  if (process.platform === "win32" && command.toLowerCase().endsWith(".cmd")) {
+    return {
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", command, ...args],
+    };
+  }
+
+  return { command, args };
+}
+
 function runCommand(command, args, cwd) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const next = resolveCommand(command, args);
+    const child = spawn(next.command, next.args, {
       cwd,
       stdio: "inherit",
       shell: false,
@@ -40,7 +52,12 @@ function runCommand(command, args, cwd) {
 
 function ensureCommandExists(command) {
   return new Promise((resolve, reject) => {
-    const checker = spawn(getCommandName(command), ["--version"], {
+    const resolvedCommand =
+      command === "node"
+        ? { command: process.execPath, args: ["--version"] }
+        : resolveCommand(getCommandName(command), ["--version"]);
+
+    const checker = spawn(resolvedCommand.command, resolvedCommand.args, {
       stdio: "ignore",
       shell: false,
     });

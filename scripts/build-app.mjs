@@ -10,9 +10,21 @@ function getNpmCommand() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
+function resolveCommand(command, args) {
+  if (process.platform === "win32" && command.toLowerCase().endsWith(".cmd")) {
+    return {
+      command: "cmd.exe",
+      args: ["/d", "/s", "/c", command, ...args],
+    };
+  }
+
+  return { command, args };
+}
+
 function runCommand(command, args, cwd) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const next = resolveCommand(command, args);
+    const child = spawn(next.command, next.args, {
       cwd,
       stdio: "inherit",
       shell: false,

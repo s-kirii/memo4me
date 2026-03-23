@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fork } from "node:child_process";
@@ -115,6 +115,11 @@ function stopBundledBackend() {
 
   backendProcess.kill("SIGTERM");
 }
+
+ipcMain.handle("memo4me:quit-app", () => {
+  app.quit();
+  return { ok: true };
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

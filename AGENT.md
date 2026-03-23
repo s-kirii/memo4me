@@ -24,7 +24,7 @@ Core characteristics:
 - local DB: `SQLite`
 - editor: `Tiptap`
 - persistence format: Markdown
-- browser target for launch: `Google Chrome`
+- browser-mode launch target: `Google Chrome`
 - current desktop direction: `Electron + installer`
 - keep Electron as a thin shell so React UI and backend logic remain reusable for a future web version
 - Go migration is a future option, not a near-term implementation target
@@ -61,6 +61,8 @@ At the time this file was written, the following areas are already implemented.
 - development launcher script: [dev.sh](./dev.sh)
 - Electron shell scaffold: [electron/main.mjs](./electron/main.mjs), [electron/preload.mjs](./electron/preload.mjs)
 - root scripts: `npm run electron:dev`, `npm run electron:build`
+- desktop packaging assets: [assets/icon.icns](./assets/icon.icns), [assets/icon.ico](./assets/icon.ico)
+- desktop build output: `dist-electron/`
 - AI settings modal and provider configuration API
 - provider adapter foundation for OpenAI-compatible / Azure OpenAI / Gemini
 - macOS Keychain / Windows DPAPI based AI key storage foundation
@@ -82,6 +84,7 @@ Important known remaining areas:
 
 - task list feature set
 - Windows real-machine distribution verification
+- Electron runtime verification from packaged `.app` / installer
 
 Always verify the latest state in [tasklist.md](./doc/tasklist.md) before changing code.
 
@@ -105,8 +108,9 @@ If code and docs differ:
 
 These decisions are already settled unless the user explicitly changes them.
 
-- Chrome is a requirement for launch behavior
-- if Chrome cannot be found, launch should fail rather than falling back to another browser
+- browser-mode launch is Chrome 固定
+- browser-mode では Chrome が見つからない場合に起動失敗とする
+- Electron runtime では外部 Chrome を前提にしない
 - MVP uses physical deletion, not trash/restore
 - AI assistant is implemented in the current app
 - task management is now centered on the `タスク` workspace rather than the old modal-only flow

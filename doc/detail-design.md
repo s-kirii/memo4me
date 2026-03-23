@@ -1210,6 +1210,9 @@ backend/
 - Electron 側は `shell` として薄く保ち、React UI と backend の業務ロジックを将来 Web 版でも再利用しやすい形に保つ
 - `Go` 移行は当面の実装対象ではなく、将来の配布要件や性能要件が明確になった時点で再検討する
 - Phase 2 時点では `electron/main.mjs` と `electron/preload.mjs` に最小 shell を配置し、`npm run electron:dev` / `npm run electron:build` で確認できる状態を目指す
+- Phase 3 以降は Electron 起動時に bundled backend を内部起動し、アプリ終了時に backend も一緒に停止する
+- browser-mode の `start-app.mjs` は当面、Chrome 起動ベースの確認導線として維持する
+- Phase 4 では配布物として `memo4me.app` / `.dmg` / `memo4me.exe` / installer `.exe` を生成し、更新時も DB を引き継ぐ前提で docs を整備する
 
 ## 13. 保存・自動保存仕様
 
@@ -1327,6 +1330,10 @@ MVP では以下のいずれかを採用する。
 - `node scripts/start-app.mjs` で backend の起動、静的フロント配信、Chrome 起動をまとめて行う
 - `node scripts/install-app.mjs` で依存確認と最新ソースからの build を行う
 - macOS / Windows には薄いランチャーを置き、本体ロジックは Node スクリプトに寄せる
+- Electron runtime では `electron/main.mjs` が `backend/dist/index.js` を内部起動し、`/api/health` を待ってからアプリ URL を開く
+- Electron の `preload` からはアプリ終了用の最小 bridge のみを公開し、UI は引き続き HTTP API を通じて backend とやり取りする
+- 配布物固有の責務は `electron/` と root `package.json` の builder 設定に閉じ込め、React UI と backend の業務ロジックは Web 版でも流用可能なまま維持する
+- デスクトップ配布物のアンインストールではアプリ本体のみ削除し、個人データはユーザーディレクトリ配下に残す
 
 起動仕様:
 

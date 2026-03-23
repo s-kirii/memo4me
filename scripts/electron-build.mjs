@@ -36,7 +36,17 @@ async function main() {
     process.platform === "win32" ? "electron-builder.cmd" : "electron-builder",
   );
 
-  await run(builderBinary, ["--dir", "--publish", "never"]);
+  const cliArgs = process.argv.slice(2);
+  const builderArgs =
+    cliArgs.length > 0
+      ? [...cliArgs, "--publish", "never"]
+      : process.platform === "darwin"
+        ? ["--mac", "--publish", "never"]
+        : process.platform === "win32"
+          ? ["--win", "--publish", "never"]
+          : ["--dir", "--publish", "never"];
+
+  await run(builderBinary, builderArgs);
 }
 
 main().catch((error) => {

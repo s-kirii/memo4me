@@ -8,7 +8,9 @@
   "main": "electron/main.mjs",
   "scripts": {
     "electron:dev": "node scripts/electron-dev.mjs",
-    "electron:build": "node scripts/electron-build.mjs"
+    "electron:build": "node scripts/electron-build.mjs",
+    "electron:build:mac": "node scripts/electron-build.mjs --mac",
+    "electron:build:win": "node scripts/electron-build.mjs --win"
   },
   "devDependencies": {
     "electron": "^41.0.3",
@@ -17,6 +19,7 @@
   "build": {
     "appId": "com.memo4me.app",
     "productName": "memo4me",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "asar": false,
     "directories": {
       "output": "dist-electron"
@@ -30,15 +33,30 @@
       "package.json"
     ],
     "mac": {
+      "icon": "assets/icon.icns",
       "category": "public.app-category.productivity",
       "target": [
-        "dir"
+        "dir",
+        "dmg"
       ]
     },
+    "dmg": {
+      "title": "memo4me",
+      "writeUpdateInfo": false
+    },
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
-        "dir"
+        "portable",
+        "nsis"
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "memo4me"
     }
   }
 }

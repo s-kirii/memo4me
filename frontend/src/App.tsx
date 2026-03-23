@@ -131,6 +131,7 @@ function isDraftDirty(draft: EditorDraft, selectedNote: NoteDetail | null) {
 }
 
 function App() {
+  const isElectronDesktop = Boolean(window.memo4meDesktop?.isElectron);
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<NoteDetail | null>(null);
@@ -596,6 +597,13 @@ function App() {
     setErrorMessage(null);
 
     try {
+      await persistDraft();
+
+      if (isElectronDesktop && window.memo4meDesktop) {
+        await window.memo4meDesktop.quitApp();
+        return;
+      }
+
       const response = await request<{ ok: true; message: string }>("/app/shutdown", {
         method: "POST",
       });
@@ -1283,7 +1291,7 @@ function App() {
         />
       </main>
 
-      {exitMessage ? (
+      {exitMessage && !isElectronDesktop ? (
         <div className="exit-banner" role="status">
           <strong>アプリを終了しました。</strong> {exitMessage}
         </div>

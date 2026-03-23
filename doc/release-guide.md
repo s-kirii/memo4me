@@ -26,6 +26,8 @@
 - 自動更新はまだ入れない
 - アプリ本体と個人データは分離して保持する
 - 将来 Web 版も見据え、配布物固有ロジックは Electron shell に閉じ込める
+- 現在の配布物は `mac-arm64` / `win-arm64` 前提で作成している
+- Intel / AMD 向け Windows (`x64`) はまだ未対応
 
 ## 3. 配布物に含めるもの
 
@@ -44,7 +46,8 @@
 
 - `dist-electron/` の生成物を元に配布する
 - Windows installer は NSIS
-- Windows の unpacked `memo4me.exe` は実行ファイル確認用として扱う
+- Windows の unpacked `memo4me.exe` は、同じフォルダ一式のまま使う
+- 利用者向けの通常配布は installer `.exe` を優先する
 
 ### 3.2 browser-mode
 
@@ -90,6 +93,11 @@ npm run electron:build:win
 - `dist-electron/memo4me-<version>-mac-arm64.dmg`
 - `dist-electron/win-arm64-unpacked/memo4me.exe`
 - `dist-electron/memo4me-<version>-win-arm64.exe`
+
+前提環境:
+
+- macOS: Apple Silicon (`arm64`)
+- Windows: ARM64
 
 配布対象外:
 

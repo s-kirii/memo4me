@@ -134,6 +134,22 @@ npm run electron:build
   - `dist-electron/win-arm64-unpacked/memo4me.exe`
   - `dist-electron/memo4me-1.0.0-win-arm64.exe`
 
+現在の前提環境:
+
+- macOS
+  - Apple Silicon (`arm64`) 前提
+  - 生成物は `mac-arm64` 向け
+- Windows
+  - ARM64 前提
+  - 生成物は `win-arm64` 向け
+
+補足:
+
+- Intel / AMD 向け Windows (`x64`) はまだ未対応
+- Apple Silicon 以外の macOS 配布物もまだ未対応
+- Windows の `win-arm64-unpacked/memo4me.exe` は、その `.exe` 単体ではなく同じフォルダ一式のまま使う
+- Windows installer `.exe` は、ダブルクリックしてインストール手順を進めればよい
+
 ## AI 機能の現在地
 
 現状は、AI の実行基盤と初期 UI まで入っている。
@@ -150,7 +166,6 @@ npm run electron:build
 - `進捗率` は `0%〜100%` を `5%` 刻みで操作でき、`0%=未着手 / 5-95%=進行中 / 100%=完了` として扱われる
 - タスクダッシュボードは現在の絞り込み条件に合わせて再集計される
 - 炎上予報は工数と進捗率から残工数を計算し、週間 / 月間で日別の必要時間を表示できる
-- Header 右端の電源ボタンから本番起動中のアプリ全体を終了できる
 - `要約` / `構造化` / `タスク抽出` / `自由入力` を実行できる
 - 結果はメモ単位で履歴保存される
 - `タスク抽出` 実行後は AI のタスク候補を確認して選択保存できる

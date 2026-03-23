@@ -509,7 +509,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2160,6 +2160,13 @@
   gap: 6px;
 }
 
+.task-forecast-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .task-forecast-card strong {
   font-size: 1.15rem;
 }
@@ -2182,6 +2189,13 @@
 
 .task-forecast-card.is-risk {
   background: color-mix(in srgb, #efc1bb 28%, var(--color-surface-card));
+}
+
+.task-forecast-open-button,
+.task-forecast-open-secondary {
+  min-height: 30px;
+  padding: 6px 12px;
+  white-space: nowrap;
 }
 
 .task-forecast-mode-toggle {
@@ -2264,6 +2278,10 @@
   font-size: 0.86rem;
 }
 
+.task-forecast-day em {
+  font-style: normal;
+}
+
 .task-forecast-day.is-safe {
   border-color: color-mix(in srgb, #6ea487 28%, var(--color-line));
 }
@@ -2309,11 +2327,14 @@
 }
 
 .task-forecast-table-row {
+  width: 100%;
   padding: 10px;
+  border: 0;
   border-top: 1px solid color-mix(in srgb, var(--color-line) 74%, transparent);
   color: var(--color-text);
   font: inherit;
   text-align: left;
+  appearance: none;
 }
 
 .task-forecast-table-row:first-child {
@@ -2373,6 +2394,163 @@
 .task-forecast-badge.is-risk {
   background: color-mix(in srgb, #f0cbc7 72%, transparent);
   color: #9d514a;
+}
+
+.task-forecast-overview-modal {
+  width: min(940px, calc(100vw - 64px));
+  height: min(620px, calc(100vh - 64px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  position: relative;
+  z-index: 1001;
+  padding: 16px;
+}
+
+.task-forecast-overview-header {
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.task-forecast-overview-header h2 {
+  margin: 0;
+  font-size: 1.28rem;
+}
+
+.task-forecast-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.task-forecast-overview-summary {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.95fr) minmax(0, 1.05fr);
+  gap: 8px;
+}
+
+.task-forecast-overview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.task-forecast-meta-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.task-forecast-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-line) 84%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface-input) 84%, transparent);
+}
+
+.task-forecast-meta-item span {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+}
+
+.task-forecast-meta-item strong {
+  font-size: 0.9rem;
+}
+
+.task-forecast-overview-summary .task-forecast-card {
+  min-height: 0;
+  padding: 10px 12px;
+  gap: 3px;
+}
+
+.task-forecast-overview-summary .task-forecast-card strong {
+  font-size: 0.94rem;
+}
+
+.task-forecast-overview-summary .task-forecast-card p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.task-forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+  overflow: hidden;
+}
+
+.task-forecast-grid-weekly {
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+.task-forecast-grid-monthly {
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+}
+
+.task-forecast-grid-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 0;
+  padding: 8px 8px 7px;
+  border: 1px solid color-mix(in srgb, var(--color-line) 84%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface-input) 88%, transparent);
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  appearance: none;
+  overflow: hidden;
+}
+
+.task-forecast-grid-item.is-safe {
+  background: color-mix(in srgb, #d9efe1 24%, var(--color-surface-card));
+}
+
+.task-forecast-grid-item.is-watch {
+  background: color-mix(in srgb, #f6e7b2 34%, var(--color-surface-card));
+}
+
+.task-forecast-grid-item.is-risk {
+  background: color-mix(in srgb, #f0cbc7 34%, var(--color-surface-card));
+}
+
+.task-forecast-grid-date {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--color-muted);
+  font-size: 0.74rem;
+  line-height: 1.15;
+}
+
+.task-forecast-grid-date small {
+  font-size: 0.65rem;
+}
+
+.task-forecast-grid-item strong {
+  font-size: 0.9rem;
+  line-height: 1.1;
+}
+
+.task-forecast-grid-item .task-forecast-badge {
+  align-self: stretch;
+  min-width: 0;
+  padding: 3px 6px;
+  font-size: 0.66rem;
 }
 
 .task-dashboard-card-header,
@@ -2992,6 +3170,21 @@
   padding-top: 4px;
 }
 
+.task-forecast-overview-header {
+  align-items: flex-start;
+}
+
+.task-forecast-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.task-forecast-overview-actions .ghost-button {
+  white-space: nowrap;
+}
+
 .task-forecast-detail-modal {
   width: min(760px, 100%);
   max-height: calc(100vh - 48px);
@@ -3037,6 +3230,34 @@
   margin: 0;
   color: var(--color-muted);
   font-size: 0.8rem;
+}
+
+@media (max-width: 720px) {
+  .task-forecast-overview-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .task-forecast-table-head,
+  .task-forecast-table-row {
+    grid-template-columns: minmax(0, 1fr) minmax(72px, auto) minmax(64px, auto);
+  }
+
+  .task-forecast-meta-list {
+    grid-template-columns: 1fr;
+  }
+
+  .task-forecast-overview-modal {
+    width: min(100%, calc(100vw - 24px));
+    height: calc(100vh - 24px);
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .task-forecast-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-y: auto;
+  }
 }
 
 .completed-tasks-header {

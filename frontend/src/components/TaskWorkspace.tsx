@@ -1,4 +1,5 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type TaskStatus = "open" | "in_progress" | "done";
 type TaskOrigin = "manual" | "ai";
@@ -289,6 +290,7 @@ export function TaskWorkspace({
   const [taskSortKey, setTaskSortKey] = useState<TaskSortKey>("updated_desc");
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isForecastModalOpen, setIsForecastModalOpen] = useState(false);
   const [forecastMode, setForecastMode] = useState<ForecastMode>("weekly");
   const [activeForecastDay, setActiveForecastDay] = useState<ForecastDay | null>(null);
 
@@ -1152,6 +1154,17 @@ export function TaskWorkspace({
     );
   };
 
+  const renderModal = (content: ReactNode) => {
+    if (typeof document === "undefined") {
+      return content;
+    }
+
+    const appShell =
+      workspaceRef.current?.closest(".app-shell") ?? document.querySelector(".app-shell");
+
+    return createPortal(content, appShell ?? document.body);
+  };
+
   const renderCreateTaskEditor = () => (
     <div className="task-board-create-panel task-create-modal-body">
       <div className="task-create-row">
@@ -1306,7 +1319,16 @@ export function TaskWorkspace({
           </div>
 
           <div className={`task-forecast-card is-${forecast.highestRiskDay?.level ?? "safe"}`}>
-            <span className="task-forecast-label">炎上予報</span>
+            <div className="task-forecast-card-header">
+              <span className="task-forecast-label">炎上予報</span>
+              <button
+                type="button"
+                className="ghost-button task-forecast-open-button"
+                onClick={() => setIsForecastModalOpen(true)}
+              >
+                予報を見る
+              </button>
+            </div>
             <strong>{getForecastLabel(forecast.highestRiskDay?.level ?? "safe")}</strong>
             <p>
               {forecast.highestRiskDay && forecast.highestRiskDay.totalHours > 0
@@ -1315,7 +1337,7 @@ export function TaskWorkspace({
                   )}`
                 : forecast.unestimatedCount > 0 || forecast.unscheduledCount > 0
                   ? `予報対象外 ${forecast.unestimatedCount + forecast.unscheduledCount} 件`
-                : "大きな詰まりはありません"}
+                  : "大きな詰まりはありません"}
             </p>
           </div>
         </div>
@@ -1405,22 +1427,7 @@ export function TaskWorkspace({
           <section className="task-dashboard-card">
             <div className="task-dashboard-card-header">
               <h3>炎上予報</h3>
-              <div className="task-forecast-mode-toggle">
-                <button
-                  type="button"
-                  className={forecastMode === "weekly" ? "is-active" : ""}
-                  onClick={() => setForecastMode("weekly")}
-                >
-                  週間
-                </button>
-                <button
-                  type="button"
-                  className={forecastMode === "monthly" ? "is-active" : ""}
-                  onClick={() => setForecastMode("monthly")}
-                >
-                  月間
-                </button>
-              </div>
+              <span>{forecastMode === "weekly" ? "週間基準" : "月間基準"}</span>
             </div>
             <div className="task-forecast-summary">
               <strong>
@@ -1432,49 +1439,6 @@ export function TaskWorkspace({
               </strong>
               <span>{`予報対象 ${forecast.forecastableTaskCount} 件`}</span>
             </div>
-            {forecast.mode === "weekly" ? (
-              <div className="task-forecast-table" role="table" aria-label="週間炎上予報">
-                <div className="task-forecast-table-head" role="row">
-                  <span role="columnheader">日付</span>
-                  <span role="columnheader">必要時間</span>
-                  <span role="columnheader">判定</span>
-                </div>
-                <div className="task-forecast-table-body">
-                  {forecast.days.map((day) => (
-                    <button
-                      key={day.key}
-                      type="button"
-                      className={`task-forecast-table-row is-${day.level}`}
-                      onClick={() => setActiveForecastDay(day)}
-                    >
-                      <span className="task-forecast-table-date">
-                        {day.shortLabel}
-                        <small>{day.weekdayLabel}</small>
-                      </span>
-                      <strong>{formatForecastHours(day.totalHours)}</strong>
-                      <span className={`task-forecast-badge is-${day.level}`}>
-                        {getForecastLabel(day.level)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="task-forecast-days">
-                {forecast.days.map((day) => (
-                  <button
-                    key={day.key}
-                    type="button"
-                    className={`task-forecast-day is-${day.level}`}
-                    onClick={() => setActiveForecastDay(day)}
-                  >
-                    <span>{day.shortLabel}</span>
-                    <small>{day.weekdayLabel}</small>
-                    <strong>{formatForecastHours(day.totalHours)}</strong>
-                  </button>
-                ))}
-              </div>
-            )}
             <ul className="task-dashboard-list">
               <li>期限超過: {allMetrics.overdueCount} 件</li>
               <li>本日期限: {allMetrics.dueTodayCount} 件</li>
@@ -1483,6 +1447,13 @@ export function TaskWorkspace({
               <li>未見積もり: {forecast.unestimatedCount} 件</li>
               <li>期日未設定: {forecast.unscheduledCount} 件</li>
             </ul>
+            <button
+              type="button"
+              className="ghost-button task-forecast-open-secondary"
+              onClick={() => setIsForecastModalOpen(true)}
+            >
+              詳細な予報を開く
+            </button>
           </section>
         </div>
       </aside>
@@ -1611,7 +1582,7 @@ export function TaskWorkspace({
         ) : null}
       </section>
 
-      {isCompletedModalOpen ? (
+      {isCompletedModalOpen ? renderModal(
         <div className="modal-backdrop" onClick={() => setIsCompletedModalOpen(false)}>
           <div
             className="modal-card completed-tasks-modal"
@@ -1641,7 +1612,7 @@ export function TaskWorkspace({
         </div>
       ) : null}
 
-      {activeForecastDay ? (
+      {activeForecastDay ? renderModal(
         <div className="modal-backdrop" onClick={() => setActiveForecastDay(null)}>
           <div
             className="modal-card task-forecast-detail-modal"
@@ -1688,7 +1659,7 @@ export function TaskWorkspace({
         </div>
       ) : null}
 
-      {isCreateModalOpen ? (
+      {isCreateModalOpen ? renderModal(
         <div className="modal-backdrop" onClick={() => setIsCreateModalOpen(false)}>
           <div
             className="modal-card task-create-modal"
@@ -1718,6 +1689,100 @@ export function TaskWorkspace({
               >
                 {isCreating ? "追加中..." : "追加"}
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isForecastModalOpen ? renderModal(
+        <div className="modal-backdrop" onClick={() => setIsForecastModalOpen(false)}>
+          <div
+            className="modal-card task-forecast-overview-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="completed-tasks-header task-forecast-overview-header">
+              <div>
+                <p className="eyebrow">炎上予報</p>
+                <h2>{forecast.mode === "weekly" ? "週間予報" : "月間予報"}</h2>
+              </div>
+              <div className="task-forecast-overview-actions">
+                <div className="task-forecast-mode-toggle">
+                  <button
+                    type="button"
+                    className={forecastMode === "weekly" ? "is-active" : ""}
+                    onClick={() => setForecastMode("weekly")}
+                  >
+                    週間
+                  </button>
+                  <button
+                    type="button"
+                    className={forecastMode === "monthly" ? "is-active" : ""}
+                    onClick={() => setForecastMode("monthly")}
+                  >
+                    月間
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setIsForecastModalOpen(false)}
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+            <div className="task-forecast-overview-body">
+              <div className="task-forecast-overview-summary">
+                <div className={`task-forecast-card is-${forecast.highestRiskDay?.level ?? "safe"}`}>
+                  <span className="task-forecast-label">現在の予報</span>
+                  <strong>{getForecastLabel(forecast.highestRiskDay?.level ?? "safe")}</strong>
+                  <p>
+                    {forecast.highestRiskDay && forecast.highestRiskDay.totalHours > 0
+                      ? `${forecast.highestRiskDay.label} ${formatForecastHours(
+                          forecast.highestRiskDay.totalHours,
+                        )}`
+                      : "大きな詰まりはありません"}
+                  </p>
+                </div>
+                <div className="task-forecast-meta-list">
+                  <div className="task-forecast-meta-item">
+                    <span>予報対象</span>
+                    <strong>{forecast.forecastableTaskCount} 件</strong>
+                  </div>
+                  <div className="task-forecast-meta-item">
+                    <span>未見積もり</span>
+                    <strong>{forecast.unestimatedCount} 件</strong>
+                  </div>
+                  <div className="task-forecast-meta-item">
+                    <span>期日未設定</span>
+                    <strong>{forecast.unscheduledCount} 件</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className={`task-forecast-grid task-forecast-grid-${forecast.mode}`}
+                role="grid"
+                aria-label={forecast.mode === "weekly" ? "週間炎上予報" : "月間炎上予報"}
+              >
+                {forecast.days.map((day) => (
+                  <button
+                    key={day.key}
+                    type="button"
+                    className={`task-forecast-grid-item is-${day.level}`}
+                    onClick={() => setActiveForecastDay(day)}
+                  >
+                    <span className="task-forecast-grid-date">
+                      {day.shortLabel}
+                      <small>{day.weekdayLabel}</small>
+                    </span>
+                    <strong>{formatForecastHours(day.totalHours)}</strong>
+                    <em className={`task-forecast-badge is-${day.level}`}>
+                      {getForecastLabel(day.level)}
+                    </em>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

@@ -47,6 +47,23 @@ type EditorDraft = {
 
 type ThemeId = "soft-editorial" | "neo-workspace" | "modern-oasis";
 type WorkspaceId = "notes" | "tasks";
+type TaskStatus = "open" | "in_progress" | "done";
+
+type TaskItem = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  tags: string[];
+  startTargetDate: string | null;
+  dueDate: string | null;
+  noteText: string | null;
+  sourceNoteId: string | null;
+  sourceNoteTitle: string | null;
+  sourceSelectionText: string | null;
+  createdBy: "manual" | "ai";
+  createdAt: string;
+  updatedAt: string;
+};
 
 const THEME_STORAGE_KEY = "memo4me.theme";
 const WORKSPACE_STORAGE_KEY = "memo4me.workspace";
@@ -66,6 +83,18 @@ function formatUpdatedAt(value: string) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  }).format(date);
+}
+
+function formatShortDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
   }).format(date);
 }
 
@@ -141,6 +170,12 @@ function App() {
   const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
   const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
   const [taskCreateRequestKey, setTaskCreateRequestKey] = useState(0);
+  const [taskNavigationRequestKey, setTaskNavigationRequestKey] = useState(0);
+  const [taskNavigationTargetId, setTaskNavigationTargetId] = useState<string | null>(null);
+  const [taskNavigationTargetNoteId, setTaskNavigationTargetNoteId] = useState<string | null>(
+    null,
+  );
+  const [relatedTasks, setRelatedTasks] = useState<TaskItem[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exitMessage, setExitMessage] = useState<string | null>(null);
   const [isExiting, setIsExiting] = useState(false);
@@ -203,6 +238,26 @@ function App() {
       setTags(response.items);
     } catch {
       setTags([]);
+    }
+  };
+
+  const loadRelatedTasks = async (noteId: string) => {
+    try {
+      const response = await request<{ items: TaskItem[] }>("/tasks");
+      const items = response.items
+        .filter((task) => task.sourceNoteId === noteId)
+        .sort((left, right) => {
+          const leftDone = left.status === "done" ? 1 : 0;
+          const rightDone = right.status === "done" ? 1 : 0;
+          if (leftDone !== rightDone) {
+            return leftDone - rightDone;
+          }
+
+          return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+        });
+      setRelatedTasks(items);
+    } catch {
+      setRelatedTasks([]);
     }
   };
 
@@ -390,11 +445,21 @@ function App() {
       setSelectedNote(null);
       setDraft({ title: "", contentMd: "", tags: [] });
       setSaveState("idle");
+      setRelatedTasks([]);
       return;
     }
 
     void loadNoteDetail(selectedNoteId);
+    void loadRelatedTasks(selectedNoteId);
   }, [selectedNoteId]);
+
+  useEffect(() => {
+    if (workspace !== "notes" || !selectedNoteId) {
+      return;
+    }
+
+    void loadRelatedTasks(selectedNoteId);
+  }, [selectedNoteId, workspace]);
 
   useEffect(() => {
     if (!selectedNote) {
@@ -492,6 +557,33 @@ function App() {
 
     await loadNotes({ preferredSelectedId: created.id });
     await loadTags();
+  };
+
+  const openTaskWorkspace = (options?: {
+    taskId?: string | null;
+    noteId?: string | null;
+    createKeyIncrement?: boolean;
+  }) => {
+    setWorkspace("tasks");
+    setTaskNavigationTargetId(options?.taskId ?? null);
+    setTaskNavigationTargetNoteId(options?.noteId ?? null);
+    setTaskNavigationRequestKey((current) => current + 1);
+
+    if (options?.createKeyIncrement) {
+      setTaskCreateRequestKey((current) => current + 1);
+    }
+  };
+
+  const handleOpenNoteFromTask = async (noteId: string) => {
+    await persistDraft();
+    setWorkspace("notes");
+    setSelectedNoteId(noteId);
+  };
+
+  const consumeTaskNavigation = () => {
+    setTaskNavigationTargetId(null);
+    setTaskNavigationTargetNoteId(null);
+    setTaskNavigationRequestKey(0);
   };
 
   const handleExitApp = async () => {
@@ -726,8 +818,7 @@ function App() {
     const selectionText = selectedEditorText.trim();
     setPendingTaskSelectionText(selectionText);
     setPendingTaskDraftTitle(selectionText);
-    setWorkspace("tasks");
-    setTaskCreateRequestKey((current) => current + 1);
+    openTaskWorkspace({ createKeyIncrement: true });
   };
 
   const handlePrimaryAction = () => {
@@ -1100,6 +1191,58 @@ function App() {
                 <span>本文</span>
               </div>
 
+              <section className="related-tasks-panel">
+                <div className="related-tasks-header">
+                  <div>
+                    <p className="eyebrow">関連タスク</p>
+                    <h3>このメモに紐づくタスク</h3>
+                  </div>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() =>
+                      openTaskWorkspace({
+                        noteId: selectedNote.id,
+                      })
+                    }
+                  >
+                    このメモのタスクを管理
+                  </button>
+                </div>
+
+                {relatedTasks.length === 0 ? (
+                  <div className="related-tasks-empty">このメモに紐づくタスクはまだありません</div>
+                ) : (
+                  <div className="related-task-list">
+                    {relatedTasks.slice(0, 5).map((task) => (
+                      <button
+                        key={task.id}
+                        type="button"
+                        className="related-task-item"
+                        onClick={() =>
+                          openTaskWorkspace({
+                            taskId: task.id,
+                            noteId: selectedNote.id,
+                          })
+                        }
+                      >
+                        <span className={`related-task-status is-${task.status}`}>
+                          {task.status === "done"
+                            ? "完了"
+                            : task.status === "in_progress"
+                              ? "進行中"
+                              : "未着手"}
+                        </span>
+                        <span className="related-task-title">{task.title}</span>
+                        <span className="related-task-due">
+                          {task.dueDate ? `期日 ${formatShortDate(task.dueDate)}` : "期日なし"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
               <div className="editor-body">
                 <RichTextEditor
                   value={draft.contentMd}
@@ -1129,9 +1272,12 @@ function App() {
           initialSelectionText={pendingTaskSelectionText}
           createRequestKey={taskCreateRequestKey}
           onConsumePrefill={consumeTaskPrefill}
+          navigationRequestKey={taskNavigationRequestKey}
+          targetTaskId={taskNavigationTargetId}
+          targetNoteId={taskNavigationTargetNoteId}
+          onConsumeNavigation={consumeTaskNavigation}
           onOpenNote={(noteId) => {
-            setSelectedNoteId(noteId);
-            setWorkspace("notes");
+            void handleOpenNoteFromTask(noteId);
           }}
           request={request}
         />
@@ -1175,6 +1321,14 @@ function App() {
           setIsAiAssistantOpen(false);
         }}
         onCreateNoteFromOutput={handleCreateNoteFromOutput}
+        onTasksSaved={(items) => {
+          const firstTask = items[0] ?? null;
+          openTaskWorkspace({
+            taskId: firstTask?.id ?? null,
+            noteId: selectedNote?.id ?? null,
+          });
+          setIsAiAssistantOpen(false);
+        }}
         request={request}
       />
     </div>

@@ -46,6 +46,20 @@ type AiAssistantModalProps = {
   onClose: () => void;
   onApplyToNote: (contentMd: string) => void;
   onCreateNoteFromOutput: (title: string, contentMd: string) => Promise<void>;
+  onTasksSaved?: (
+    items: Array<{
+      id: string;
+      title: string;
+      status: "open" | "done";
+      tags: string[];
+      sourceNoteId: string | null;
+      sourceNoteTitle: string | null;
+      sourceSelectionText: string | null;
+      createdBy: "manual" | "ai";
+      createdAt: string;
+      updatedAt: string;
+    }>,
+  ) => void;
   request: <T>(path: string, init?: RequestInit) => Promise<T>;
 };
 
@@ -157,6 +171,7 @@ export function AiAssistantModal({
   onClose,
   onApplyToNote,
   onCreateNoteFromOutput,
+  onTasksSaved,
   request,
 }: AiAssistantModalProps) {
   const [history, setHistory] = useState<AiOutputItem[]>([]);
@@ -551,6 +566,7 @@ export function AiAssistantModal({
           onClose={() => setIsTaskCandidatesOpen(false)}
           onSaved={(items) => {
             setSuccessMessage(`${items.length} 件の AI タスクを保存しました。`);
+            onTasksSaved?.(items);
           }}
           request={request}
         />

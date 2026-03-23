@@ -34,6 +34,10 @@ type TaskWorkspaceProps = {
   initialSelectionText?: string;
   createRequestKey: number;
   onConsumePrefill: () => void;
+  navigationRequestKey: number;
+  targetTaskId?: string | null;
+  targetNoteId?: string | null;
+  onConsumeNavigation: () => void;
   onOpenNote: (noteId: string) => void;
   request: <T>(path: string, init?: RequestInit) => Promise<T>;
 };
@@ -172,6 +176,10 @@ export function TaskWorkspace({
   initialSelectionText = "",
   createRequestKey,
   onConsumePrefill,
+  navigationRequestKey,
+  targetTaskId = null,
+  targetNoteId = null,
+  onConsumeNavigation,
   onOpenNote,
   request,
 }: TaskWorkspaceProps) {
@@ -186,6 +194,7 @@ export function TaskWorkspace({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagFilter, setActiveTagFilter] = useState("__all__");
+  const [activeSourceNoteFilter, setActiveSourceNoteFilter] = useState("__all__");
   const [taskSortKey, setTaskSortKey] = useState<TaskSortKey>("updated_desc");
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
 
@@ -259,6 +268,40 @@ export function TaskWorkspace({
     createInputRef.current?.focus();
     createInputRef.current?.select();
   }, [createRequestKey, isActive]);
+
+  useEffect(() => {
+    if (!isActive || navigationRequestKey === 0) {
+      return;
+    }
+
+    const targetTask = targetTaskId
+      ? tasks.find((task) => task.id === targetTaskId) ?? null
+      : null;
+
+    setSearchQuery("");
+    setActiveTagFilter("__all__");
+
+    if (targetNoteId) {
+      setActiveSourceNoteFilter(targetNoteId);
+    }
+
+    if (targetTaskId) {
+      setExpandedTaskId(targetTaskId);
+    }
+
+    if (targetTask?.status === "done") {
+      setIsCompletedModalOpen(true);
+    }
+
+    onConsumeNavigation();
+  }, [
+    isActive,
+    navigationRequestKey,
+    onConsumeNavigation,
+    targetNoteId,
+    targetTaskId,
+    tasks,
+  ]);
 
   useEffect(() => {
     if (!expandedTaskId) {
@@ -474,7 +517,10 @@ export function TaskWorkspace({
         activeTagFilter === "__all__" ||
         task.tags.some((tag) => normalizeTag(tag) === normalizeTag(activeTagFilter));
 
-      return matchesQuery && matchesTag;
+      const matchesSourceNote =
+        activeSourceNoteFilter === "__all__" || task.sourceNoteId === activeSourceNoteFilter;
+
+      return matchesQuery && matchesTag && matchesSourceNote;
     });
 
     nextTasks.sort((left, right) => {
@@ -499,7 +545,7 @@ export function TaskWorkspace({
     });
 
     return nextTasks;
-  }, [activeTagFilter, searchQuery, taskSortKey, tasks]);
+  }, [activeSourceNoteFilter, activeTagFilter, searchQuery, taskSortKey, tasks]);
 
   const groupedTasks = useMemo(
     () => ({
@@ -581,6 +627,14 @@ export function TaskWorkspace({
       topTags,
     };
   }, [tasks]);
+
+  const activeSourceNoteTitle = useMemo(() => {
+    if (activeSourceNoteFilter === "__all__") {
+      return null;
+    }
+
+    return notes.find((note) => note.id === activeSourceNoteFilter)?.title.trim() || "無題";
+  }, [activeSourceNoteFilter, notes]);
 
   const renderTaskRow = (task: TaskItem) => {
     const dueState = getDueState(task.dueDate);
@@ -1068,6 +1122,20 @@ export function TaskWorkspace({
             </select>
           </label>
           <label className="field task-board-filter">
+            <span>元メモ</span>
+            <select
+              value={activeSourceNoteFilter}
+              onChange={(event) => setActiveSourceNoteFilter(event.target.value)}
+            >
+              <option value="__all__">すべて</option>
+              {notes.map((note) => (
+                <option key={note.id} value={note.id}>
+                  {note.title.trim() || "無題"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field task-board-filter">
             <span>並び順</span>
             <select
               value={taskSortKey}
@@ -1124,6 +1192,19 @@ export function TaskWorkspace({
             </>
           ) : null}
         </div>
+
+        {activeSourceNoteTitle ? (
+          <div className="task-note-filter-banner">
+            <span>元メモで絞り込み中: {activeSourceNoteTitle}</span>
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => setActiveSourceNoteFilter("__all__")}
+            >
+              解除
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {isCompletedModalOpen ? (

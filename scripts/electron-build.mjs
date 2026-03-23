@@ -45,6 +45,18 @@ function resolveTargetArch(cliArgs) {
   return process.arch;
 }
 
+function resolveTargetPlatform(cliArgs) {
+  if (cliArgs.includes("--win")) {
+    return "win32";
+  }
+
+  if (cliArgs.includes("--mac")) {
+    return "darwin";
+  }
+
+  return process.platform;
+}
+
 async function main() {
   await run(process.execPath, [path.join(rootDir, "scripts", "build-app.mjs")]);
 
@@ -57,6 +69,7 @@ async function main() {
 
   const cliArgs = process.argv.slice(2);
   const targetArch = resolveTargetArch(cliArgs);
+  const targetPlatform = resolveTargetPlatform(cliArgs);
   const builderArgs =
     cliArgs.length > 0
       ? [...cliArgs, "--publish", "never"]
@@ -74,7 +87,11 @@ async function main() {
         npm_config_runtime: "electron",
         npm_config_target: electronVersion,
         npm_config_arch: targetArch,
+        npm_config_platform: targetPlatform,
         npm_config_disturl: "https://electronjs.org/headers",
+        npm_config_build_from_source: "false",
+        npm_config_fallback_to_build: "false",
+        npm_config_update_binary: "true",
       },
     });
 

@@ -1,6 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -14,18 +13,20 @@ const devRendererUrl = process.env.ELECTRON_RENDERER_URL ?? "";
 let mainWindow = null;
 let backendProcess = null;
 let quitting = false;
+const backendLogBuffer = [];
 
-const desktopLogPath = path.join(
-  os.homedir(),
-  "Library",
-  "Logs",
-  "memo4me-desktop.log",
-);
+function getDesktopLogPath() {
+  const baseDir = app.isReady()
+    ? path.join(app.getPath("userData"), "logs")
+    : path.join(process.cwd(), ".memo4me-logs");
+  return path.join(baseDir, "memo4me-desktop.log");
+}
 
 function logDesktop(message) {
   const line = `[${new Date().toISOString()}] ${message}\n`;
 
   try {
+    const desktopLogPath = getDesktopLogPath();
     fs.mkdirSync(path.dirname(desktopLogPath), { recursive: true });
     fs.appendFileSync(desktopLogPath, line);
   } catch {}
@@ -60,6 +61,33 @@ async function waitForUrl(url, label) {
   throw new Error(`${label} did not become ready in time.`);
 }
 
+function escapeHtml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function getRecentBackendLogs() {
+  return backendLogBuffer.slice(-20).join("\n");
+}
+
+async function showWindowMessage(title, body) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  const html = `<!doctype html>
+  <html lang="ja">
+    <body style="margin:0;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#faf6ef;color:#2f241c;">
+      <h1 style="margin:0 0 16px;font-size:28px;">${escapeHtml(title)}</h1>
+      <pre style="white-space:pre-wrap;word-break:break-word;font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;background:#fffaf4;border:1px solid #e4d8ca;border-radius:16px;padding:16px;">${escapeHtml(body)}</pre>
+    </body>
+  </html>`;
+  await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+}
+
 async function startBundledBackend() {
   if (backendProcess) {
     logDesktop("backend already running, skipping start");
@@ -76,6 +104,7 @@ async function startBundledBackend() {
 
   backendProcess = spawn(process.execPath, [backendEntry], {
     cwd: appRoot,
+    windowsHide: true,
     env: {
       ...process.env,
       HOST: host,
@@ -88,12 +117,16 @@ async function startBundledBackend() {
   logDesktop(`spawned backend pid=${backendProcess.pid ?? "unknown"}`);
 
   backendProcess.stdout?.on("data", (chunk) => {
-    logDesktop(`backend stdout: ${String(chunk).trim()}`);
+    const line = String(chunk).trim();
+    backendLogBuffer.push(`stdout: ${line}`);
+    logDesktop(`backend stdout: ${line}`);
     process.stdout.write(chunk);
   });
 
   backendProcess.stderr?.on("data", (chunk) => {
-    logDesktop(`backend stderr: ${String(chunk).trim()}`);
+    const line = String(chunk).trim();
+    backendLogBuffer.push(`stderr: ${line}`);
+    logDesktop(`backend stderr: ${line}`);
     process.stderr.write(chunk);
   });
 
@@ -116,7 +149,14 @@ async function startBundledBackend() {
     }
   });
 
-  await waitForUrl(`${appUrl}/api/health`, "memo4me backend");
+  await Promise.race([
+    waitForUrl(`${appUrl}/api/health`, "memo4me backend"),
+    new Promise((_, reject) => {
+      backendProcess?.once("exit", (code) => {
+        reject(new Error(`memo4me backend exited before ready (code: ${code ?? "null"})`));
+      });
+    }),
+  ]);
 }
 
 async function createMainWindow() {
@@ -135,6 +175,18 @@ async function createMainWindow() {
     },
   });
 
+  mainWindow.webContents.on("console-message", (_event, level, message) => {
+    logDesktop(`renderer console[level=${level}]: ${message}`);
+  });
+
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    logDesktop(`renderer gone: ${JSON.stringify(details)}`);
+  });
+
+  mainWindow.webContents.on("did-fail-load", (_event, code, description, url) => {
+    logDesktop(`did-fail-load code=${code} description=${description} url=${url}`);
+  });
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: "deny" };
@@ -147,9 +199,22 @@ async function createMainWindow() {
     return;
   }
 
-  await startBundledBackend();
-  logDesktop(`loading app url: ${appUrl}`);
-  await mainWindow.loadURL(appUrl);
+  await showWindowMessage("memo4me を起動しています", "backend を起動中です。しばらくお待ちください。");
+
+  try {
+    await startBundledBackend();
+    logDesktop(`loading app url: ${appUrl}`);
+    await mainWindow.loadURL(appUrl);
+  } catch (error) {
+    const desktopLogPath = getDesktopLogPath();
+    const message =
+      error instanceof Error ? error.message : "memo4me backend failed to start.";
+    logDesktop(`startup display error: ${message}`);
+    await showWindowMessage(
+      "memo4me の起動に失敗しました",
+      `${message}\n\nLog file:\n${desktopLogPath}\n\nRecent backend logs:\n${getRecentBackendLogs() || "(no backend logs)"}`,
+    );
+  }
 }
 
 function stopBundledBackend() {

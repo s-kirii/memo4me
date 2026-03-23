@@ -188,6 +188,7 @@ export function TaskWorkspace({
 }: TaskWorkspaceProps) {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const createInputRef = useRef<HTMLInputElement | null>(null);
+  const handledCreateRequestKeyRef = useRef(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [notes, setNotes] = useState<NoteOption[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
@@ -268,10 +269,15 @@ export function TaskWorkspace({
   ]);
 
   useEffect(() => {
-    if (!isActive) {
+    if (!isActive || createRequestKey === 0) {
       return;
     }
 
+    if (createRequestKey === handledCreateRequestKeyRef.current) {
+      return;
+    }
+
+    handledCreateRequestKeyRef.current = createRequestKey;
     setIsCreateModalOpen(true);
   }, [createRequestKey, isActive]);
 

@@ -1204,6 +1204,13 @@ backend/
 - バックエンド内部のサービス層で業務ロジックを完結させる
 - Electron/Tauri 固有 API に依存しない
 
+補足:
+
+- 直近のデスクトップ化方針は `Electron + installer`
+- Electron 側は `shell` として薄く保ち、React UI と backend の業務ロジックを将来 Web 版でも再利用しやすい形に保つ
+- `Go` 移行は当面の実装対象ではなく、将来の配布要件や性能要件が明確になった時点で再検討する
+- Phase 2 時点では `electron/main.mjs` と `electron/preload.mjs` に最小 shell を配置し、`npm run electron:dev` / `npm run electron:build` で確認できる状態を目指す
+
 ## 13. 保存・自動保存仕様
 
 ### 13.1 保存タイミング

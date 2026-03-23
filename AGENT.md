@@ -25,7 +25,9 @@ Core characteristics:
 - editor: `Tiptap`
 - persistence format: Markdown
 - browser target for launch: `Google Chrome`
-- future backend migration to Go is possible, so frontend/backend must stay loosely coupled through HTTP APIs
+- current desktop direction: `Electron + installer`
+- keep Electron as a thin shell so React UI and backend logic remain reusable for a future web version
+- Go migration is a future option, not a near-term implementation target
 
 ## Read Order
 
@@ -57,6 +59,8 @@ At the time this file was written, the following areas are already implemented.
 - code block language selection and syntax highlighting
 - delete confirmation
 - development launcher script: [dev.sh](./dev.sh)
+- Electron shell scaffold: [electron/main.mjs](./electron/main.mjs), [electron/preload.mjs](./electron/preload.mjs)
+- root scripts: `npm run electron:dev`, `npm run electron:build`
 - AI settings modal and provider configuration API
 - provider adapter foundation for OpenAI-compatible / Azure OpenAI / Gemini
 - macOS Keychain / Windows DPAPI based AI key storage foundation

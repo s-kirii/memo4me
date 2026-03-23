@@ -1,0 +1,44 @@
+{
+  "name": "memo4me",
+  "private": true,
+  "version": "1.0.0",
+  "description": "memo4me desktop shell",
+  "author": "memo4me",
+  "type": "module",
+  "main": "electron/main.mjs",
+  "scripts": {
+    "electron:dev": "node scripts/electron-dev.mjs",
+    "electron:build": "node scripts/electron-build.mjs"
+  },
+  "devDependencies": {
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.memo4me.app",
+    "productName": "memo4me",
+    "asar": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "frontend/dist/**/*",
+      "backend/dist/**/*",
+      "backend/node_modules/**/*",
+      "backend/package.json",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dir"
+      ]
+    },
+    "win": {
+      "target": [
+        "dir"
+      ]
+    }
+  }
+}

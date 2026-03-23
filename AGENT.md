@@ -66,6 +66,10 @@ At the time this file was written, the following areas are already implemented.
 - AI task candidate review flow
 - task list modal
 - tasks CRUD API with source-note linkage
+- workspace-style task management screen
+- task dashboard with filtered summary metrics
+- task creation modal
+- `today` task flag and filter
 
 Important known remaining areas:
 
@@ -97,7 +101,8 @@ These decisions are already settled unless the user explicitly changes them.
 - Chrome is a requirement for launch behavior
 - if Chrome cannot be found, launch should fail rather than falling back to another browser
 - MVP uses physical deletion, not trash/restore
-- task list modal and AI assistant are already implemented in the current app
+- AI assistant is implemented in the current app
+- task management is now centered on the `タスク` workspace rather than the old modal-only flow
 - Notion-like editing feel is a must-have
 - Markdown is the persisted source of truth
 - backend should remain replaceable via stable HTTP API boundaries
@@ -108,9 +113,10 @@ Key files and responsibilities:
 
 - App shell and main UI: [App.tsx](./frontend/src/App.tsx)
 - Main frontend styling: [App.css](./frontend/src/App.css)
+- Task workspace: [TaskWorkspace.tsx](./frontend/src/components/TaskWorkspace.tsx)
 - AI assistant modal: [AiAssistantModal.tsx](./frontend/src/components/AiAssistantModal.tsx)
 - AI task candidate modal: [AiTaskCandidatesModal.tsx](./frontend/src/components/AiTaskCandidatesModal.tsx)
-- tasks modal: [TasksModal.tsx](./frontend/src/components/TasksModal.tsx)
+- legacy tasks modal: [TasksModal.tsx](./frontend/src/components/TasksModal.tsx)
 - AI settings modal: [AiSettingsModal.tsx](./frontend/src/components/AiSettingsModal.tsx)
 - Rich editor component: [RichTextEditor.tsx](./frontend/src/components/RichTextEditor.tsx)
 - Markdown conversion helpers: [markdown.ts](./frontend/src/lib/markdown.ts)

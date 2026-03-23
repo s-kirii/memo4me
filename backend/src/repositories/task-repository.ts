@@ -6,6 +6,7 @@ type TaskRow = {
   title: string;
   status: "open" | "done";
   workflow_stage: "open" | "in_progress";
+  is_today_task: number;
   start_target_date: string | null;
   due_date: string | null;
   note_text: string | null;
@@ -36,6 +37,7 @@ export class TaskRepository {
           tasks.title,
           tasks.status,
           tasks.workflow_stage,
+          tasks.is_today_task,
           tasks.start_target_date,
           tasks.due_date,
           tasks.note_text,
@@ -59,6 +61,7 @@ export class TaskRepository {
       id: row.id,
       title: row.title,
       status: row.status === "done" ? "done" : row.workflow_stage,
+      isTodayTask: Boolean(row.is_today_task),
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
@@ -81,6 +84,7 @@ export class TaskRepository {
           tasks.title,
           tasks.status,
           tasks.workflow_stage,
+          tasks.is_today_task,
           tasks.start_target_date,
           tasks.due_date,
           tasks.note_text,
@@ -106,6 +110,7 @@ export class TaskRepository {
       id: row.id,
       title: row.title,
       status: row.status === "done" ? "done" : row.workflow_stage,
+      isTodayTask: Boolean(row.is_today_task),
       tags: this.getTagNamesForTask(row.id),
       startTargetDate: row.start_target_date,
       dueDate: row.due_date,
@@ -123,6 +128,7 @@ export class TaskRepository {
     id: string;
     title: string;
     status: TaskStatus;
+    isTodayTask: boolean;
     sourceNoteId: string | null;
     sourceSelectionText: string | null;
     tags: { name: string; normalizedName: string }[];
@@ -143,6 +149,7 @@ export class TaskRepository {
           title,
           status,
           workflow_stage,
+          is_today_task,
           start_target_date,
           due_date,
           note_text,
@@ -157,6 +164,7 @@ export class TaskRepository {
           @title,
           @dbStatus,
           @workflowStage,
+          @isTodayTask,
           @startTargetDate,
           @dueDate,
           @noteText,
@@ -171,6 +179,7 @@ export class TaskRepository {
       .run({
         ...input,
         ...taskStatus,
+        isTodayTask: input.isTodayTask ? 1 : 0,
       });
 
     this.upsertTagsForTask(input.id, input.tags);
@@ -180,6 +189,7 @@ export class TaskRepository {
     id: string;
     title: string;
     status: TaskStatus;
+    isTodayTask: boolean;
     tags: { name: string; normalizedName: string }[];
     startTargetDate: string | null;
     dueDate: string | null;
@@ -196,6 +206,7 @@ export class TaskRepository {
         SET title = @title,
             status = @dbStatus,
             workflow_stage = @workflowStage,
+            is_today_task = @isTodayTask,
             start_target_date = @startTargetDate,
             due_date = @dueDate,
             note_text = @noteText,
@@ -207,6 +218,7 @@ export class TaskRepository {
       .run({
         ...input,
         ...taskStatus,
+        isTodayTask: input.isTodayTask ? 1 : 0,
       });
 
     this.upsertTagsForTask(input.id, input.tags);

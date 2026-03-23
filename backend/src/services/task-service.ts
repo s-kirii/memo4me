@@ -67,6 +67,7 @@ export class TaskService {
       id: crypto.randomUUID(),
       title: input.title.trim(),
       status: input.status ?? "open",
+      isTodayTask: input.status === "done" ? false : (input.isTodayTask ?? false),
       tags,
       startTargetDate: normalizeDate(input.startTargetDate),
       dueDate: normalizeDate(input.dueDate),
@@ -105,6 +106,12 @@ export class TaskService {
 
     const nextTitle = input.title !== undefined ? input.title.trim() : existing.title;
     const nextStatus = input.status ?? existing.status;
+    const nextIsTodayTask =
+      nextStatus === "done"
+        ? false
+        : input.isTodayTask !== undefined
+          ? input.isTodayTask
+          : existing.isTodayTask;
     const nextTags = sanitizeTags(input.tags ?? existing.tags);
     const nextSourceNoteId =
       input.sourceNoteId !== undefined ? input.sourceNoteId : existing.sourceNoteId;
@@ -128,6 +135,10 @@ export class TaskService {
 
     assertStatus(nextStatus);
 
+    if (input.isTodayTask !== undefined && typeof input.isTodayTask !== "boolean") {
+      throw new HttpError(400, "VALIDATION_ERROR", "isTodayTask must be a boolean");
+    }
+
     if (nextSourceNoteId && !this.noteRepository.noteExists(nextSourceNoteId)) {
       throw new HttpError(404, "NOT_FOUND", "source note was not found");
     }
@@ -136,6 +147,7 @@ export class TaskService {
       id,
       title: nextTitle,
       status: nextStatus,
+      isTodayTask: nextIsTodayTask,
       tags: nextTags,
       sourceNoteId: nextSourceNoteId ?? null,
       startTargetDate: nextStartTargetDate,
@@ -168,6 +180,10 @@ export class TaskService {
 
     if (input.status !== undefined) {
       assertStatus(input.status);
+    }
+
+    if (input.isTodayTask !== undefined && typeof input.isTodayTask !== "boolean") {
+      throw new HttpError(400, "VALIDATION_ERROR", "isTodayTask must be a boolean");
     }
 
     if (

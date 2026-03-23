@@ -128,6 +128,7 @@ export type TaskItem = {
   id: string;
   title: string;
   status: TaskStatus;
+  isTodayTask: boolean;
   tags: string[];
   startTargetDate: string | null;
   dueDate: string | null;
@@ -143,6 +144,7 @@ export type TaskItem = {
 export type TaskInput = {
   title: string;
   status?: TaskStatus;
+  isTodayTask?: boolean;
   tags?: string[];
   startTargetDate?: string | null;
   dueDate?: string | null;
@@ -159,6 +161,7 @@ export type TaskBulkCreateInput = {
 export type TaskUpdateInput = {
   title?: string;
   status?: TaskStatus;
+  isTodayTask?: boolean;
   tags?: string[];
   startTargetDate?: string | null;
   dueDate?: string | null;

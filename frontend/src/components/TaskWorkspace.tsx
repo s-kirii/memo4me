@@ -8,6 +8,7 @@ type TaskItem = {
   id: string;
   title: string;
   status: TaskStatus;
+  isTodayTask: boolean;
   tags: string[];
   startTargetDate: string | null;
   dueDate: string | null;
@@ -24,6 +25,8 @@ type NoteOption = {
   id: string;
   title: string;
 };
+
+type TodayTaskFilter = "__all__" | "__today__";
 
 type TaskWorkspaceProps = {
   isActive: boolean;
@@ -195,8 +198,11 @@ export function TaskWorkspace({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTagFilter, setActiveTagFilter] = useState("__all__");
   const [activeSourceNoteFilter, setActiveSourceNoteFilter] = useState("__all__");
+  const [activeTodayTaskFilter, setActiveTodayTaskFilter] =
+    useState<TodayTaskFilter>("__all__");
   const [taskSortKey, setTaskSortKey] = useState<TaskSortKey>("updated_desc");
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [attachCurrentNote, setAttachCurrentNote] = useState(false);
@@ -249,6 +255,7 @@ export function TaskWorkspace({
       setAttachCurrentNote(Boolean(currentNoteId));
       setNewTaskSourceNoteId(currentNoteId ?? "");
       setNewTaskTags(currentNoteId ? currentNoteTags : []);
+      setIsCreateModalOpen(true);
       onConsumePrefill();
     }
   }, [
@@ -265,9 +272,17 @@ export function TaskWorkspace({
       return;
     }
 
+    setIsCreateModalOpen(true);
+  }, [createRequestKey, isActive]);
+
+  useEffect(() => {
+    if (!isActive || !isCreateModalOpen) {
+      return;
+    }
+
     createInputRef.current?.focus();
     createInputRef.current?.select();
-  }, [createRequestKey, isActive]);
+  }, [isActive, isCreateModalOpen]);
 
   useEffect(() => {
     if (!isActive || navigationRequestKey === 0) {
@@ -280,6 +295,7 @@ export function TaskWorkspace({
 
     setSearchQuery("");
     setActiveTagFilter("__all__");
+    setActiveTodayTaskFilter("__all__");
 
     if (targetNoteId) {
       setActiveSourceNoteFilter(targetNoteId);
@@ -365,6 +381,7 @@ export function TaskWorkspace({
     patch: {
       title?: string;
       status?: TaskStatus;
+      isTodayTask?: boolean;
       tags?: string[];
       startTargetDate?: string | null;
       dueDate?: string | null;
@@ -410,6 +427,7 @@ export function TaskWorkspace({
       setNewTaskStartTargetDate("");
       setNewTaskDueDate("");
       setNewTagInput("");
+      setIsCreateModalOpen(false);
       await loadWorkspaceData();
     } catch (error) {
       setErrorMessage(
@@ -520,7 +538,10 @@ export function TaskWorkspace({
       const matchesSourceNote =
         activeSourceNoteFilter === "__all__" || task.sourceNoteId === activeSourceNoteFilter;
 
-      return matchesQuery && matchesTag && matchesSourceNote;
+      const matchesTodayTask =
+        activeTodayTaskFilter === "__all__" || task.isTodayTask;
+
+      return matchesQuery && matchesTag && matchesSourceNote && matchesTodayTask;
     });
 
     nextTasks.sort((left, right) => {
@@ -545,7 +566,14 @@ export function TaskWorkspace({
     });
 
     return nextTasks;
-  }, [activeSourceNoteFilter, activeTagFilter, searchQuery, taskSortKey, tasks]);
+  }, [
+    activeSourceNoteFilter,
+    activeTagFilter,
+    activeTodayTaskFilter,
+    searchQuery,
+    taskSortKey,
+    tasks,
+  ]);
 
   const groupedTasks = useMemo(
     () => ({
@@ -557,17 +585,18 @@ export function TaskWorkspace({
   );
 
   const allMetrics = useMemo(() => {
-    const totalCount = tasks.length;
-    const openCount = tasks.filter((task) => task.status === "open").length;
-    const inProgressCount = tasks.filter((task) => task.status === "in_progress").length;
-    const doneCount = tasks.filter((task) => task.status === "done").length;
-    const overdueCount = tasks.filter(
+    const totalCount = filteredTasks.length;
+    const openCount = filteredTasks.filter((task) => task.status === "open").length;
+    const inProgressCount = filteredTasks.filter((task) => task.status === "in_progress").length;
+    const doneCount = filteredTasks.filter((task) => task.status === "done").length;
+    const todayTaskCount = filteredTasks.filter((task) => task.isTodayTask).length;
+    const overdueCount = filteredTasks.filter(
       (task) => task.status !== "done" && getDueState(task.dueDate) === "overdue",
     ).length;
-    const dueTodayCount = tasks.filter(
+    const dueTodayCount = filteredTasks.filter(
       (task) => task.status !== "done" && getDueState(task.dueDate) === "today",
     ).length;
-    const lateStartCount = tasks.filter(
+    const lateStartCount = filteredTasks.filter(
       (task) => getStartTargetState(task.startTargetDate, task.status) === "late",
     ).length;
 
@@ -575,7 +604,7 @@ export function TaskWorkspace({
       string,
       { total: number; done: number; active: number }
     >();
-    for (const task of tasks) {
+    for (const task of filteredTasks) {
       for (const tag of task.tags) {
         const current = tagStats.get(tag) ?? { total: 0, done: 0, active: 0 };
         current.total += 1;
@@ -613,6 +642,7 @@ export function TaskWorkspace({
       openCount,
       inProgressCount,
       doneCount,
+      todayTaskCount,
       overdueCount,
       dueTodayCount,
       lateStartCount,
@@ -626,7 +656,7 @@ export function TaskWorkspace({
       }),
       topTags,
     };
-  }, [tasks]);
+  }, [filteredTasks]);
 
   const activeSourceNoteTitle = useMemo(() => {
     if (activeSourceNoteFilter === "__all__") {
@@ -649,10 +679,12 @@ export function TaskWorkspace({
           <label className="task-board-row-main">
             <input
               type="checkbox"
-              checked={task.status === "done"}
+              checked={task.isTodayTask}
+              disabled={task.status === "done"}
+              title={task.status === "done" ? "完了タスクは今日やるに設定できません" : "今日やるタスクに設定"}
               onChange={(event) =>
                 void updateTask(task.id, {
-                  status: event.target.checked ? "done" : "open",
+                  isTodayTask: event.target.checked,
                 })
               }
             />
@@ -675,6 +707,7 @@ export function TaskWorkspace({
 
           <div className="task-board-row-meta-inline">
             <span className={`task-row-due is-${dueState}`}>{formatDateLabel(task.dueDate)}</span>
+            {task.isTodayTask ? <span className="task-row-today">今日やる</span> : null}
             <div className="task-row-tags">
               {task.tags.length === 0 ? (
                 <span className="task-row-tag is-empty">タグなし</span>
@@ -753,6 +786,8 @@ export function TaskWorkspace({
                   onChange={(event) =>
                     void updateTask(task.id, {
                       status: event.target.value as TaskStatus,
+                      isTodayTask:
+                        event.target.value === "done" ? false : task.isTodayTask,
                     })
                   }
                 >
@@ -848,6 +883,96 @@ export function TaskWorkspace({
     );
   };
 
+  const renderCreateTaskEditor = () => (
+    <div className="task-board-create-panel task-create-modal-body">
+      <div className="task-create-row">
+        <input
+          ref={createInputRef}
+          className="task-create-input"
+          type="text"
+          value={newTaskTitle}
+          onChange={(event) => setNewTaskTitle(event.target.value)}
+          placeholder="タスクを入力"
+        />
+      </div>
+
+      {initialSelectionText ? (
+        <p className="task-selection-preview is-draft">{initialSelectionText}</p>
+      ) : null}
+
+      <div className="task-create-inline-options">
+        <label className="task-attach-toggle">
+          <input
+            type="checkbox"
+            checked={attachCurrentNote}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setAttachCurrentNote(checked);
+              if (checked) {
+                setNewTaskSourceNoteId(currentNoteId ?? "");
+              } else {
+                setNewTaskSourceNoteId("");
+              }
+            }}
+            disabled={!currentNoteId}
+          />
+          <span>現在のメモを紐付ける</span>
+        </label>
+
+        <label className="task-source-select">
+          <span>元メモ</span>
+          <select
+            value={newTaskSourceNoteId}
+            onChange={(event) => {
+              setNewTaskSourceNoteId(event.target.value);
+              setAttachCurrentNote(Boolean(event.target.value));
+            }}
+            disabled={notes.length === 0}
+          >
+            <option value="">メモを選択</option>
+            {notes.map((note) => (
+              <option key={note.id} value={note.id}>
+                {note.title.trim() || "無題"}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="task-create-details">
+          <label className="task-date-field">
+            <span>着手目標</span>
+            <input
+              type="date"
+              value={newTaskStartTargetDate}
+              onChange={(event) => setNewTaskStartTargetDate(event.target.value)}
+            />
+          </label>
+          <label className="task-date-field">
+            <span>期日</span>
+            <input
+              type="date"
+              value={newTaskDueDate}
+              onChange={(event) => setNewTaskDueDate(event.target.value)}
+            />
+          </label>
+        </div>
+      </div>
+
+      {renderTagEditor(
+        newTaskTags,
+        newTagInput,
+        setNewTagInput,
+        (rawTag) => {
+          setNewTaskTags((currentTags) => addTag(currentTags, rawTag));
+          setNewTagInput("");
+        },
+        (tagToRemove) => {
+          setNewTaskTags((currentTags) => removeTag(currentTags, tagToRemove));
+        },
+      )}
+    </div>
+  );
+
   return (
     <div
       ref={workspaceRef}
@@ -860,6 +985,7 @@ export function TaskWorkspace({
             <p className="eyebrow">タスクダッシュボード</p>
             <h2>状況サマリー</h2>
           </div>
+          <p className="task-dashboard-caption">現在の絞り込み条件で集計</p>
         </div>
 
         <div className="task-dashboard-compact">
@@ -881,12 +1007,12 @@ export function TaskWorkspace({
               <span>進行中</span>
             </div>
             <div className="task-kpi-card">
-              <strong>{allMetrics.overdueCount}</strong>
-              <span>期限超過</span>
+              <strong>{allMetrics.todayTaskCount}</strong>
+              <span>今日やる</span>
             </div>
             <div className="task-kpi-card">
-              <strong>{allMetrics.dueTodayCount}</strong>
-              <span>本日期限</span>
+              <strong>{allMetrics.overdueCount}</strong>
+              <span>期限超過</span>
             </div>
           </div>
 
@@ -987,6 +1113,7 @@ export function TaskWorkspace({
             <ul className="task-dashboard-list">
               <li>期限超過: {allMetrics.overdueCount} 件</li>
               <li>本日期限: {allMetrics.dueTodayCount} 件</li>
+              <li>今日やる: {allMetrics.todayTaskCount} 件</li>
               <li>着手遅延: {allMetrics.lateStartCount} 件</li>
             </ul>
           </section>
@@ -994,108 +1121,6 @@ export function TaskWorkspace({
       </aside>
 
       <section className="task-board-panel">
-        <div className="task-board-create-panel">
-          <div className="task-board-section-header">
-            <div>
-              <p className="eyebrow">タスクワークスペース</p>
-            </div>
-          </div>
-
-          <div className="task-create-row">
-            <input
-              ref={createInputRef}
-              className="task-create-input"
-              type="text"
-              value={newTaskTitle}
-              onChange={(event) => setNewTaskTitle(event.target.value)}
-              placeholder="タスクを入力"
-            />
-            <button
-              type="button"
-              className="primary-button task-create-button"
-              onClick={() => void handleCreateTask()}
-              disabled={!newTaskTitle.trim() || isCreating}
-            >
-              {isCreating ? "追加中..." : "追加"}
-            </button>
-          </div>
-
-          {initialSelectionText ? (
-            <p className="task-selection-preview is-draft">{initialSelectionText}</p>
-          ) : null}
-
-          <div className="task-create-inline-options">
-            <label className="task-attach-toggle">
-              <input
-                type="checkbox"
-                checked={attachCurrentNote}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  setAttachCurrentNote(checked);
-                  if (checked) {
-                    setNewTaskSourceNoteId(currentNoteId ?? "");
-                  } else {
-                    setNewTaskSourceNoteId("");
-                  }
-                }}
-                disabled={!currentNoteId}
-              />
-              <span>現在のメモを紐付ける</span>
-            </label>
-
-            <label className="task-source-select">
-              <span>元メモ</span>
-              <select
-                value={newTaskSourceNoteId}
-                onChange={(event) => {
-                  setNewTaskSourceNoteId(event.target.value);
-                  setAttachCurrentNote(Boolean(event.target.value));
-                }}
-                disabled={notes.length === 0}
-              >
-                <option value="">メモを選択</option>
-                {notes.map((note) => (
-                  <option key={note.id} value={note.id}>
-                    {note.title.trim() || "無題"}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="task-create-details">
-              <label className="task-date-field">
-                <span>着手目標</span>
-                <input
-                  type="date"
-                  value={newTaskStartTargetDate}
-                  onChange={(event) => setNewTaskStartTargetDate(event.target.value)}
-                />
-              </label>
-              <label className="task-date-field">
-                <span>期日</span>
-                <input
-                  type="date"
-                  value={newTaskDueDate}
-                  onChange={(event) => setNewTaskDueDate(event.target.value)}
-                />
-              </label>
-            </div>
-          </div>
-
-          {renderTagEditor(
-            newTaskTags,
-            newTagInput,
-            setNewTagInput,
-            (rawTag) => {
-              setNewTaskTags((currentTags) => addTag(currentTags, rawTag));
-              setNewTagInput("");
-            },
-            (tagToRemove) => {
-              setNewTaskTags((currentTags) => removeTag(currentTags, tagToRemove));
-            },
-          )}
-        </div>
-
         {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
 
         <div className="task-board-controls">
@@ -1133,6 +1158,18 @@ export function TaskWorkspace({
                   {note.title.trim() || "無題"}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="field task-board-filter">
+            <span>今日やる</span>
+            <select
+              value={activeTodayTaskFilter}
+              onChange={(event) =>
+                setActiveTodayTaskFilter(event.target.value as TodayTaskFilter)
+              }
+            >
+              <option value="__all__">すべて</option>
+              <option value="__today__">今日やるのみ</option>
             </select>
           </label>
           <label className="field task-board-filter">
@@ -1232,6 +1269,41 @@ export function TaskWorkspace({
               ) : (
                 groupedTasks.done.map(renderTaskRow)
               )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isCreateModalOpen ? (
+        <div className="modal-backdrop" onClick={() => setIsCreateModalOpen(false)}>
+          <div
+            className="modal-card task-create-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="completed-tasks-header">
+              <div>
+                <p className="eyebrow">新規タスク</p>
+                <h2>タスクを追加</h2>
+              </div>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setIsCreateModalOpen(false)}
+              >
+                閉じる
+              </button>
+            </div>
+            {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+            {renderCreateTaskEditor()}
+            <div className="task-create-modal-actions">
+              <button
+                type="button"
+                className="primary-button task-create-button"
+                onClick={() => void handleCreateTask()}
+                disabled={!newTaskTitle.trim() || isCreating}
+              >
+                {isCreating ? "追加中..." : "追加"}
+              </button>
             </div>
           </div>
         </div>

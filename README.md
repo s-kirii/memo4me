@@ -129,10 +129,10 @@ npm run electron:build
 
 - macOS
   - `dist-electron/mac-arm64/memo4me.app`
-  - `dist-electron/memo4me-1.0.0-mac-arm64.dmg`
+  - `dist-electron/memo4me-1.0.1-mac-arm64.dmg`
 - Windows
-  - `dist-electron/memo4me-1.0.0-win-arm64.exe`
-  - `dist-electron/memo4me-1.0.0-win-x64.exe`
+  - `dist-electron/memo4me-1.0.1-win-arm64.exe`
+  - `dist-electron/memo4me-1.0.1-win-x64.exe`
 
 現在の前提環境:
 

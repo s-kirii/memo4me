@@ -8,6 +8,8 @@ export type SecretStorageMeta = {
 };
 
 const KEYCHAIN_SERVICE_NAME = "memo4me.ai";
+const WINDOWS_DPAPI_BOOTSTRAP =
+  "Add-Type -AssemblyName System.Security; ";
 
 function runCommand(
   command: string,
@@ -77,6 +79,7 @@ export class PlatformSecretStore {
 
     if (isWindows()) {
       const script =
+        WINDOWS_DPAPI_BOOTSTRAP +
         "[Convert]::ToBase64String([System.Security.Cryptography.ProtectedData]::Protect([System.Text.Encoding]::UTF8.GetBytes($env:MEMO4ME_SECRET), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))";
       const encrypted = runCommand(
         "powershell.exe",
@@ -119,6 +122,7 @@ export class PlatformSecretStore {
 
     if (meta.storage === "dpapi" && isWindows()) {
       const script =
+        WINDOWS_DPAPI_BOOTSTRAP +
         "[System.Text.Encoding]::UTF8.GetString([System.Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($env:MEMO4ME_SECRET_REF), $null, [System.Security.Cryptography.DataProtectionScope]::CurrentUser))";
 
       try {

@@ -82,9 +82,15 @@ npm run electron:build:win
 npm run electron:build:win:x64
 ```
 
+注意:
+
+- Electron 配布物の build は **並列実行しない**
+- `better-sqlite3` のようなネイティブ依存を各ターゲット向けに都度 rebuild するため、同時に複数ターゲットを build すると別OS/別arch のバイナリが混入する可能性がある
+- 必ず `mac -> win-arm64 -> win-x64` のように **順番に** 実行する
+
 ### 4.2 配布物の準備
 
-1. `npm run electron:build:mac` / `npm run electron:build:win` / `npm run electron:build:win:x64` を実行する
+1. `npm run electron:build:mac` / `npm run electron:build:win` / `npm run electron:build:win:x64` を **順番に** 実行する
 2. `dist-electron/` の成果物を確認する
 3. 配布対象だけを Release に添付する
 

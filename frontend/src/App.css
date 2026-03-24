@@ -1798,6 +1798,46 @@
   padding: 22px;
 }
 
+.task-planning-settings-modal {
+  width: min(640px, 100%);
+  padding: 22px;
+}
+
+.task-planning-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.task-planning-settings-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-surface-card) 88%, transparent);
+  cursor: pointer;
+}
+
+.task-planning-settings-option input {
+  margin-top: 2px;
+}
+
+.task-planning-settings-option strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.task-planning-settings-option p {
+  margin: 6px 0 0;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .appearance-theme-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2551,6 +2591,61 @@
   font-size: 0.98rem;
 }
 
+.task-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-summary-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.task-summary-card-header strong {
+  font-size: 0.96rem;
+}
+
+.task-summary-mode-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface-input) 82%, transparent);
+}
+
+.task-summary-mode-toggle button {
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.task-summary-mode-toggle button.is-active {
+  background: color-mix(in srgb, var(--color-button-primary-bg) 22%, var(--color-surface-card));
+  color: var(--color-text);
+}
+
+.task-summary-card p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.task-summary-card small {
+  display: block;
+  margin-top: -2px;
+}
+
 .task-dashboard-bars,
 .task-tag-progress-list,
 .task-dashboard-list {
@@ -2578,6 +2673,15 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-line-strong) 52%, transparent);
   overflow: hidden;
+}
+
+.task-dashboard-bar-track.is-static {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  min-height: 32px;
+  height: auto;
+  background: color-mix(in srgb, var(--color-surface-input) 82%, transparent);
 }
 
 .task-dashboard-bar-fill {

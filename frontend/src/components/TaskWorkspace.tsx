@@ -1,5 +1,6 @@
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import * as holidayJp from "@holiday-jp/holiday_jp";
 
 type TaskStatus = "open" | "in_progress" | "done";
 type TaskOrigin = "manual" | "ai";
@@ -32,6 +33,7 @@ type NoteOption = {
 type TodayTaskFilter = "__all__" | "__today__";
 type ForecastMode = "weekly" | "monthly";
 type ForecastDayLevel = "safe" | "watch" | "risk";
+type SprintCalendarMode = "calendar_days" | "working_days";
 
 type ForecastContribution = {
   taskId: string;
@@ -55,6 +57,7 @@ type ForecastDay = {
 type TaskWorkspaceProps = {
   isActive: boolean;
   reloadRequestKey?: number;
+  sprintCalendarMode: SprintCalendarMode;
   currentNoteId: string | null;
   currentNoteTitle: string;
   currentNoteTags: string[];
@@ -265,9 +268,75 @@ function normalizeProgressPercent(value: number) {
   return Math.round(clamped / 5) * 5;
 }
 
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function isSameOrAfter(left: Date, right: Date) {
+  return left.getTime() >= right.getTime();
+}
+
+function isWeekend(date: Date) {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+function isJapaneseHoliday(date: Date) {
+  return holidayJp.isHoliday(date);
+}
+
+function isWorkingDay(date: Date) {
+  return !isWeekend(date) && !isJapaneseHoliday(date);
+}
+
+function countDaysInclusive(
+  startDate: Date,
+  endDate: Date,
+  mode: SprintCalendarMode,
+) {
+  if (endDate.getTime() < startDate.getTime()) {
+    return 0;
+  }
+
+  if (mode === "calendar_days") {
+    return (
+      Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    );
+  }
+
+  let count = 0;
+  for (
+    let cursor = new Date(startDate);
+    cursor.getTime() <= endDate.getTime();
+    cursor = addDays(cursor, 1)
+  ) {
+    if (isWorkingDay(cursor)) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function isEffectiveTodayTask(task: TaskItem, referenceDate = startOfToday()) {
+  if (task.status === "done") {
+    return false;
+  }
+
+  const startDate = parseDateOnly(task.startTargetDate);
+  if (!startDate) {
+    return false;
+  }
+
+  return isSameOrAfter(referenceDate, startDate);
+}
+
 export function TaskWorkspace({
   isActive,
   reloadRequestKey = 0,
+  sprintCalendarMode,
   currentNoteId,
   currentNoteTags,
   initialDraftTitle = "",
@@ -666,8 +735,10 @@ export function TaskWorkspace({
 
   const filteredTasks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
+    const today = startOfToday();
 
     const nextTasks = tasks.filter((task) => {
+      const effectiveTodayTask = isEffectiveTodayTask(task, today);
       const matchesQuery =
         normalizedQuery.length === 0 ||
         task.title.toLowerCase().includes(normalizedQuery) ||
@@ -683,7 +754,7 @@ export function TaskWorkspace({
         activeSourceNoteFilter === "__all__" || task.sourceNoteId === activeSourceNoteFilter;
 
       const matchesTodayTask =
-        activeTodayTaskFilter === "__all__" || task.isTodayTask;
+        activeTodayTaskFilter === "__all__" || effectiveTodayTask;
 
       return matchesQuery && matchesTag && matchesSourceNote && matchesTodayTask;
     });
@@ -733,7 +804,8 @@ export function TaskWorkspace({
     const openCount = filteredTasks.filter((task) => task.status === "open").length;
     const inProgressCount = filteredTasks.filter((task) => task.status === "in_progress").length;
     const doneCount = filteredTasks.filter((task) => task.status === "done").length;
-    const todayTaskCount = filteredTasks.filter((task) => task.isTodayTask).length;
+    const today = startOfToday();
+    const todayTaskCount = filteredTasks.filter((task) => isEffectiveTodayTask(task, today)).length;
     const overdueCount = filteredTasks.filter(
       (task) => task.status !== "done" && getDueState(task.dueDate) === "overdue",
     ).length;
@@ -801,6 +873,102 @@ export function TaskWorkspace({
       topTags,
     };
   }, [filteredTasks]);
+
+  const todaySprintSummary = useMemo(() => {
+    const today = startOfToday();
+    const previousDay = addDays(today, -1);
+    const todayTasks = filteredTasks.filter(
+      (task) => isEffectiveTodayTask(task, today) && task.status !== "done",
+    );
+
+    let eligibleCount = 0;
+    let preStartCount = 0;
+    let unestimatedCount = 0;
+    let unscheduledCount = 0;
+
+    let hoursNumerator = 0;
+    let hoursDenominator = 0;
+    for (const task of todayTasks) {
+      const startDate = parseDateOnly(task.startTargetDate);
+      const dueDate = parseDateOnly(task.dueDate);
+
+      if (!startDate || !dueDate) {
+        unscheduledCount += 1;
+        continue;
+      }
+
+      if (!isSameOrAfter(today, startDate)) {
+        preStartCount += 1;
+        continue;
+      }
+
+      const totalUnits = countDaysInclusive(startDate, dueDate, sprintCalendarMode);
+      if (totalUnits <= 0) {
+        unscheduledCount += 1;
+        continue;
+      }
+
+      const elapsedUnitsToday = countDaysInclusive(startDate, today, sprintCalendarMode);
+      const elapsedUnitsPrevious = countDaysInclusive(startDate, previousDay, sprintCalendarMode);
+      const targetToday = (100 / totalUnits) * elapsedUnitsToday;
+      const targetPrevious = (100 / totalUnits) * elapsedUnitsPrevious;
+      const dailyTarget = targetToday - targetPrevious;
+
+      if (dailyTarget <= 0) {
+        continue;
+      }
+
+      eligibleCount += 1;
+
+      if (task.estimatedHours === null || task.estimatedHours <= 0) {
+        unestimatedCount += 1;
+        continue;
+      }
+
+      hoursNumerator += task.estimatedHours * (task.progressPercent - targetPrevious);
+      hoursDenominator += task.estimatedHours * dailyTarget;
+    }
+
+    const sprintRatio = hoursDenominator === 0 ? null : hoursNumerator / hoursDenominator;
+    const activePercent = sprintRatio === null ? null : Math.round(sprintRatio * 100);
+    const ringPercent =
+      activePercent === null ? 0 : Math.max(0, Math.min(100, activePercent));
+    const todayIsWorkingDay = isWorkingDay(today);
+    const calendarModeLabel =
+      sprintCalendarMode === "working_days" ? "稼働日ベース" : "全日ベース";
+    const summaryStatus =
+      activePercent === null
+        ? "対象なし"
+        : activePercent >= 100
+          ? "順調"
+          : activePercent >= 0
+            ? "未達"
+            : "遅れ";
+
+    return {
+      todayTaskCount: todayTasks.length,
+      eligibleCount,
+      preStartCount,
+      unscheduledCount,
+      unestimatedCount,
+      sprintRatio,
+      activePercent,
+      ringPercent,
+      todayIsWorkingDay,
+      calendarModeLabel,
+      summaryStatus,
+      summaryBody:
+        activePercent === null
+          ? sprintCalendarMode === "working_days" && !todayIsWorkingDay
+            ? "今日は非稼働日です"
+            : "今日ぶんの目標があるタスクはありません"
+          : activePercent >= 100
+            ? "今日ぶんの目標は満たせています"
+            : activePercent >= 0
+              ? "今日ぶんの目標に対してまだ不足があります"
+              : "昨日までの未達を持ち越しています",
+    };
+  }, [filteredTasks, sprintCalendarMode]);
 
   const forecast = useMemo(() => {
     const today = new Date();
@@ -927,6 +1095,7 @@ export function TaskWorkspace({
   const renderTaskRow = (task: TaskItem) => {
     const dueState = getDueState(task.dueDate);
     const isExpanded = expandedTaskId === task.id;
+    const effectiveTodayTask = isEffectiveTodayTask(task);
 
     return (
       <article
@@ -937,13 +1106,19 @@ export function TaskWorkspace({
           <label className="task-board-row-main">
             <input
               type="checkbox"
-              checked={task.isTodayTask}
-              disabled={task.status === "done"}
-              title={task.status === "done" ? "完了タスクは今日やるに設定できません" : "今日やるタスクに設定"}
-              onChange={(event) =>
-                void updateTask(task.id, {
-                  isTodayTask: event.target.checked,
-                })
+              checked={effectiveTodayTask}
+              disabled
+              title={
+                task.status === "done"
+                  ? "完了タスクは今日やる対象外です"
+                  : effectiveTodayTask
+                    ? "着手日以降のため自動で今日やるに含まれています"
+                    : "着手日までは今日やるに含まれません"
+              }
+              aria-label={
+                effectiveTodayTask
+                  ? "着手日以降のため今日やるに含まれています"
+                  : "まだ今日やる対象ではありません"
               }
             />
             <input
@@ -967,7 +1142,7 @@ export function TaskWorkspace({
             <span className={`task-row-due is-${dueState}`}>{formatDateLabel(task.dueDate)}</span>
             <span className={`task-row-status is-${task.status}`}>{getStatusLabel(task.status)}</span>
             <span className="task-row-progress">{task.progressPercent}%</span>
-            {task.isTodayTask ? <span className="task-row-today">今日やる</span> : null}
+            {effectiveTodayTask ? <span className="task-row-today">今日やる</span> : null}
             <div className="task-row-tags">
               {task.tags.length === 0 ? (
                 <span className="task-row-tag is-empty">タグなし</span>
@@ -1305,35 +1480,54 @@ export function TaskWorkspace({
             <p className="eyebrow">タスクダッシュボード</p>
             <h2>状況サマリー</h2>
           </div>
-          <p className="task-dashboard-caption">現在の絞り込み条件で集計</p>
+          <p className="task-dashboard-caption">
+            今日やるタスクを中心に {todaySprintSummary.calendarModeLabel} で集計
+          </p>
         </div>
 
         <div className="task-dashboard-compact">
           <div
             className="task-progress-ring"
-            style={{ "--task-progress-ratio": `${allMetrics.completionRatio}%` } as CSSProperties}
+            style={{ "--task-progress-ratio": `${todaySprintSummary.ringPercent}%` } as CSSProperties}
           >
-            <strong>{allMetrics.completionRatio}%</strong>
-            <span>完了率</span>
+            <strong>
+              {todaySprintSummary.activePercent === null
+                ? "--"
+                : `${todaySprintSummary.activePercent}%`}
+            </strong>
+            <span>今日の達成率</span>
           </div>
 
           <div className="task-kpi-grid">
             <div className="task-kpi-card">
-              <strong>{allMetrics.openCount}</strong>
-              <span>未着手</span>
-            </div>
-            <div className="task-kpi-card">
-              <strong>{allMetrics.inProgressCount}</strong>
-              <span>進行中</span>
-            </div>
-            <div className="task-kpi-card">
-              <strong>{allMetrics.todayTaskCount}</strong>
+              <strong>{todaySprintSummary.todayTaskCount}</strong>
               <span>今日やる</span>
             </div>
             <div className="task-kpi-card">
-              <strong>{allMetrics.overdueCount}</strong>
-              <span>期限超過</span>
+              <strong>{todaySprintSummary.eligibleCount}</strong>
+              <span>計算対象</span>
             </div>
+            <div className="task-kpi-card">
+              <strong>{todaySprintSummary.preStartCount}</strong>
+              <span>着手前</span>
+            </div>
+            <div className="task-kpi-card">
+              <strong>{todaySprintSummary.unestimatedCount}</strong>
+              <span>未見積もり</span>
+            </div>
+          </div>
+
+          <div className="task-summary-card">
+            <div className="task-summary-card-header">
+              <span className="task-forecast-label">今日のスプリント</span>
+              <small>{todaySprintSummary.calendarModeLabel}</small>
+            </div>
+            <strong>{todaySprintSummary.summaryStatus}</strong>
+            <p>{todaySprintSummary.summaryBody}</p>
+            <small>
+              想定工数で重み付け
+              {` / 未見積もり ${todaySprintSummary.unestimatedCount} 件`}
+            </small>
           </div>
 
           <div className={`task-forecast-card is-${forecast.highestRiskDay?.level ?? "safe"}`}>
@@ -1363,83 +1557,46 @@ export function TaskWorkspace({
         <div className="task-dashboard-detail">
           <section className="task-dashboard-card">
             <div className="task-dashboard-card-header">
-              <h3>全体進捗</h3>
-              <span>{allMetrics.totalCount} 件</span>
+              <h3>今日の内訳</h3>
+              <span>{todaySprintSummary.calendarModeLabel}</span>
             </div>
             <div className="task-dashboard-bars">
               <div className="task-dashboard-bar-row">
-                <span>未着手</span>
-                <div className="task-dashboard-bar-track">
-                  <div
-                    className="task-dashboard-bar-fill is-open"
-                    style={{
-                      width: allMetrics.totalCount
-                        ? `${(allMetrics.openCount / allMetrics.totalCount) * 100}%`
-                        : "0%",
-                    }}
-                  />
-                </div>
-                <strong>{allMetrics.openCount}</strong>
+                <span>今日やる</span>
+                <div className="task-dashboard-bar-track is-static" />
+                <strong>{todaySprintSummary.todayTaskCount}</strong>
               </div>
               <div className="task-dashboard-bar-row">
-                <span>進行中</span>
-                <div className="task-dashboard-bar-track">
-                  <div
-                    className="task-dashboard-bar-fill is-progress"
-                    style={{
-                      width: allMetrics.totalCount
-                        ? `${(allMetrics.inProgressCount / allMetrics.totalCount) * 100}%`
-                        : "0%",
-                    }}
-                  />
-                </div>
-                <strong>{allMetrics.inProgressCount}</strong>
+                <span>計算対象</span>
+                <div className="task-dashboard-bar-track is-static" />
+                <strong>{todaySprintSummary.eligibleCount}</strong>
               </div>
               <div className="task-dashboard-bar-row">
-                <span>完了</span>
-                <div className="task-dashboard-bar-track">
-                  <div
-                    className="task-dashboard-bar-fill is-done"
-                    style={{
-                      width: allMetrics.totalCount
-                        ? `${(allMetrics.doneCount / allMetrics.totalCount) * 100}%`
-                        : "0%",
-                    }}
-                  />
-                </div>
-                <strong>{allMetrics.doneCount}</strong>
+                <span>着手前</span>
+                <div className="task-dashboard-bar-track is-static" />
+                <strong>{todaySprintSummary.preStartCount}</strong>
+              </div>
+              <div className="task-dashboard-bar-row">
+                <span>日付未設定</span>
+                <div className="task-dashboard-bar-track is-static" />
+                <strong>{todaySprintSummary.unscheduledCount}</strong>
               </div>
             </div>
           </section>
 
           <section className="task-dashboard-card">
             <div className="task-dashboard-card-header">
-              <h3>タグ別進捗</h3>
-              <span>上位 {allMetrics.topTags.length} 件</span>
+              <h3>計算メモ</h3>
+              <span>単一指標</span>
             </div>
-            <div className="task-tag-progress-list">
-              {allMetrics.topTags.length === 0 ? (
-                <p className="task-dashboard-empty">タグ付きタスクはまだありません</p>
-              ) : (
-                allMetrics.topTags.map((tag) => (
-                  <div key={tag.name} className="task-tag-progress-row">
-                    <div className="task-tag-progress-header">
-                      <span>{tag.name}</span>
-                      <strong>{tag.completionRatio}%</strong>
-                    </div>
-                    <div className="task-dashboard-bar-track">
-                      <div
-                        className="task-dashboard-bar-fill is-tag"
-                        style={{ width: `${tag.completionRatio}%` }}
-                      />
-                    </div>
-                    <small>
-                      完了 {tag.done} / 全体 {tag.total}
-                    </small>
-                  </div>
-                ))
-              )}
-            </div>
+            <ul className="task-dashboard-list">
+              <li>表示方式: 今日の目標に対して今どこにいるか</li>
+              <li>日数計算: {todaySprintSummary.calendarModeLabel}</li>
+              <li>集計: 想定工数で重み付け</li>
+              <li>着手日前のタスク: 計算対象外</li>
+              <li>未見積もり: {todaySprintSummary.unestimatedCount} 件</li>
+              <li>日付未設定: {todaySprintSummary.unscheduledCount} 件</li>
+            </ul>
           </section>
 
           <section className="task-dashboard-card">

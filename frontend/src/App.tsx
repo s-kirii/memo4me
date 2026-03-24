@@ -9,6 +9,7 @@ import {
 import { AiAssistantModal } from "./components/AiAssistantModal";
 import { AppearanceModal } from "./components/AppearanceModal";
 import { AiSettingsModal } from "./components/AiSettingsModal";
+import { TaskPlanningSettingsModal } from "./components/TaskPlanningSettingsModal";
 import { TaskWorkspace } from "./components/TaskWorkspace";
 import { RichTextEditor } from "./components/RichTextEditor";
 import { request } from "./lib/api";
@@ -47,6 +48,7 @@ type EditorDraft = {
 
 type ThemeId = "soft-editorial" | "neo-workspace" | "modern-oasis";
 type WorkspaceId = "notes" | "tasks";
+type SprintCalendarMode = "calendar_days" | "working_days";
 type TaskStatus = "open" | "in_progress" | "done";
 
 type TaskItem = {
@@ -67,6 +69,7 @@ type TaskItem = {
 
 const THEME_STORAGE_KEY = "memo4me.theme";
 const WORKSPACE_STORAGE_KEY = "memo4me.workspace";
+const TASK_SPRINT_CALENDAR_MODE_KEY = "memo4me.taskSprintCalendarMode";
 
 function getDisplayTitle(title: string) {
   return title.trim() || "無題";
@@ -156,6 +159,7 @@ function App() {
   const [isAiSettingsOpen, setIsAiSettingsOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
+  const [isTaskPlanningSettingsOpen, setIsTaskPlanningSettingsOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isTagFilterMenuOpen, setIsTagFilterMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeId>(() => {
@@ -166,6 +170,12 @@ function App() {
 
     return "soft-editorial";
   });
+  const [taskSprintCalendarMode, setTaskSprintCalendarMode] = useState<SprintCalendarMode>(
+    () => {
+      const savedMode = window.localStorage.getItem(TASK_SPRINT_CALENDAR_MODE_KEY);
+      return savedMode === "calendar_days" ? "calendar_days" : "working_days";
+    },
+  );
   const [selectedEditorText, setSelectedEditorText] = useState("");
   const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
   const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
@@ -334,6 +344,10 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(WORKSPACE_STORAGE_KEY, workspace);
   }, [workspace]);
+
+  useEffect(() => {
+    window.localStorage.setItem(TASK_SPRINT_CALENDAR_MODE_KEY, taskSprintCalendarMode);
+  }, [taskSprintCalendarMode]);
 
   useEffect(() => {
     draftRef.current = draft;
@@ -864,6 +878,16 @@ function App() {
                   type="button"
                   className="settings-popover-item"
                   onClick={() => {
+                    setIsTaskPlanningSettingsOpen(true);
+                    setIsSettingsMenuOpen(false);
+                  }}
+                >
+                  進捗計算
+                </button>
+                <button
+                  type="button"
+                  className="settings-popover-item"
+                  onClick={() => {
                     setIsAiSettingsOpen(true);
                     setIsSettingsMenuOpen(false);
                   }}
@@ -1243,6 +1267,7 @@ function App() {
             void handleOpenNoteFromTask(noteId);
           }}
           request={request}
+          sprintCalendarMode={taskSprintCalendarMode}
         />
       </main>
 
@@ -1251,6 +1276,12 @@ function App() {
         selectedTheme={theme}
         onSelectTheme={setTheme}
         onClose={() => setIsAppearanceOpen(false)}
+      />
+      <TaskPlanningSettingsModal
+        isOpen={isTaskPlanningSettingsOpen}
+        sprintCalendarMode={taskSprintCalendarMode}
+        onSelectSprintCalendarMode={setTaskSprintCalendarMode}
+        onClose={() => setIsTaskPlanningSettingsOpen(false)}
       />
       <AiSettingsModal
         isOpen={isAiSettingsOpen}

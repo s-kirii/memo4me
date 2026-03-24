@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const buildLockPath = path.join(rootDir, "dist-electron", ".electron-build.lock");
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, "package.json"), "utf8"),
 );
@@ -58,6 +59,23 @@ function resolveTargetPlatform(cliArgs) {
 }
 
 async function main() {
+  fs.mkdirSync(path.dirname(buildLockPath), { recursive: true });
+
+  if (fs.existsSync(buildLockPath)) {
+    throw new Error(
+      "Another electron build is already running. Run desktop builds sequentially, not in parallel.",
+    );
+  }
+
+  fs.writeFileSync(
+    buildLockPath,
+    JSON.stringify({
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      args: process.argv.slice(2),
+    }),
+  );
+
   await run(process.execPath, [path.join(rootDir, "scripts", "build-app.mjs")]);
 
   const builderBinary = path.join(
@@ -103,9 +121,13 @@ async function main() {
       console.error(
         error instanceof Error
           ? `Failed to restore backend better-sqlite3 for system Node: ${error.message}`
-          : "Failed to restore backend better-sqlite3 for system Node.",
+        : "Failed to restore backend better-sqlite3 for system Node.",
       );
     });
+
+    if (fs.existsSync(buildLockPath)) {
+      fs.rmSync(buildLockPath);
+    }
   }
 }
 

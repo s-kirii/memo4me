@@ -1,5 +1,6 @@
 doc/tasklist.md
 doc/windows-start-check.md
+doc/release-candidates.md
 node_modules/
 dist-electron/
 frontend/node_modules/

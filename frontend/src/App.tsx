@@ -171,6 +171,7 @@ function App() {
   const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
   const [taskCreateRequestKey, setTaskCreateRequestKey] = useState(0);
   const [taskNavigationRequestKey, setTaskNavigationRequestKey] = useState(0);
+  const [taskReloadRequestKey, setTaskReloadRequestKey] = useState(0);
   const [taskNavigationTargetId, setTaskNavigationTargetId] = useState<string | null>(null);
   const [taskNavigationTargetNoteId, setTaskNavigationTargetNoteId] = useState<string | null>(
     null,
@@ -1226,6 +1227,7 @@ function App() {
       <main className={`workspace-main${workspace === "tasks" ? "" : " is-hidden"}`}>
         <TaskWorkspace
           isActive={workspace === "tasks"}
+          reloadRequestKey={taskReloadRequestKey}
           currentNoteId={selectedNote?.id ?? null}
           currentNoteTitle={draft.title}
           currentNoteTags={draft.tags}
@@ -1278,6 +1280,7 @@ function App() {
         onCreateNoteFromOutput={handleCreateNoteFromOutput}
         onTasksSaved={(items) => {
           const firstTask = items[0] ?? null;
+          setTaskReloadRequestKey((current) => current + 1);
           openTaskWorkspace({
             taskId: firstTask?.id ?? null,
             noteId: selectedNote?.id ?? null,

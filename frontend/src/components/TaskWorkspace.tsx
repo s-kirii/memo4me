@@ -54,6 +54,7 @@ type ForecastDay = {
 
 type TaskWorkspaceProps = {
   isActive: boolean;
+  reloadRequestKey?: number;
   currentNoteId: string | null;
   currentNoteTitle: string;
   currentNoteTags: string[];
@@ -266,6 +267,7 @@ function normalizeProgressPercent(value: number) {
 
 export function TaskWorkspace({
   isActive,
+  reloadRequestKey = 0,
   currentNoteId,
   currentNoteTags,
   initialDraftTitle = "",
@@ -345,6 +347,14 @@ export function TaskWorkspace({
   useEffect(() => {
     void loadWorkspaceData();
   }, []);
+
+  useEffect(() => {
+    if (reloadRequestKey === 0) {
+      return;
+    }
+
+    void loadWorkspaceData();
+  }, [reloadRequestKey]);
 
   useEffect(() => {
     if (!isActive) {

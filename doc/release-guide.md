@@ -43,7 +43,7 @@
 
 補足:
 
-- `dist-electron/` の生成物を元に配布する
+- `dist-electron/v<version>/` の生成物を元に配布する
 - Windows installer は NSIS
 - `win-arm64-unpacked/` は確認用の生成物として残る
 - 利用者向けの通常配布は installer `.exe` を使う
@@ -91,15 +91,15 @@ npm run electron:build:win:x64
 ### 4.2 配布物の準備
 
 1. `npm run electron:build:mac` / `npm run electron:build:win` / `npm run electron:build:win:x64` を **順番に** 実行する
-2. `dist-electron/` の成果物を確認する
+2. `dist-electron/v<version>/` の成果物を確認する
 3. 配布対象だけを Release に添付する
 
 主な確認対象:
 
-- `dist-electron/mac-arm64/memo4me.app`
-- `dist-electron/memo4me-<version>-mac-arm64.dmg`
-- `dist-electron/memo4me-<version>-win-arm64.exe`
-- `dist-electron/memo4me-<version>-win-x64.exe`
+- `dist-electron/v<version>/mac-arm64/memo4me.app`
+- `dist-electron/v<version>/memo4me-<version>-mac-arm64.dmg`
+- `dist-electron/v<version>/memo4me-<version>-win-arm64.exe`
+- `dist-electron/v<version>/memo4me-<version>-win-x64.exe`
 
 前提環境:
 

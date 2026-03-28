@@ -1,4 +1,11 @@
-type ThemeId = "soft-editorial" | "neo-workspace" | "modern-oasis";
+type ThemeId =
+  | "calm-editorial"
+  | "soft-editorial"
+  | "focus-light"
+  | "graphite-terminal"
+  | "girly"
+  | "starlight"
+  | "ocean";
 
 type AppearanceModalProps = {
   isOpen: boolean;
@@ -13,19 +20,39 @@ const THEME_OPTIONS: Array<{
   description: string;
 }> = [
   {
+    id: "focus-light",
+    label: "Focus Light",
+    description: "クリーンな明るさとシャープな密度感を両立した仕事向けテーマです。",
+  },
+  {
+    id: "graphite-terminal",
+    label: "Graphite Terminal",
+    description: "深いチャコールと白、緑のアクセントでまとめたダークテーマです。",
+  },
+  {
+    id: "calm-editorial",
+    label: "Calm Editorial",
+    description: "静かな余白とやわらかなセージで整えた、標準のテーマです。",
+  },
+  {
     id: "soft-editorial",
     label: "Soft Editorial",
-    description: "やわらかく落ち着いた、紙もののような雰囲気です。",
+    description: "紙のような質感と誌面感を少し強めた、創造的なテーマです。",
   },
   {
-    id: "neo-workspace",
-    label: "Neo Workspace",
-    description: "シャープで軽やかな、現代的なワークスペース風です。",
+    id: "girly",
+    label: "Girly",
+    description: "ローズベージュとミルクの余白でまとめた、やわらかい手帳風テーマです。",
   },
   {
-    id: "modern-oasis",
-    label: "Modern Oasis",
-    description: "セージと砂色を基調にした、穏やかなボタニカル空間です。",
+    id: "starlight",
+    label: "Starlight",
+    description: "星明かりのようなネイビーと淡い光で整えた幻想的なダークテーマです。",
+  },
+  {
+    id: "ocean",
+    label: "Ocean",
+    description: "青緑と海図のような曲線を重ねた、爽やかな明テーマです。",
   },
 ];
 

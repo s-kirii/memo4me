@@ -109,7 +109,11 @@ function formatDateLabel(value: string | null) {
   }).format(date);
 }
 
-function getDueState(value: string | null) {
+function getDueState(value: string | null, status?: TaskStatus) {
+  if (status === "done") {
+    return "none" as const;
+  }
+
   if (!value) {
     return "none" as const;
   }
@@ -130,7 +134,7 @@ function getDueState(value: string | null) {
     return "today" as const;
   }
 
-  return "upcoming" as const;
+    return "upcoming" as const;
 }
 
 function getForecastLabel(level: FireForecastLevel) {
@@ -952,7 +956,20 @@ export function TaskWorkspace({
     const previousDay = addDays(today, -1);
 
     return filteredTasks
-      .filter((task) => isEffectiveTodayTask(task, today))
+      .filter((task) => {
+        if (!isEffectiveTodayTask(task, today)) {
+          return false;
+        }
+
+        if (task.status === "done") {
+          const dueDate = parseDateOnly(task.dueDate);
+          if (dueDate && dueDate.getTime() < today.getTime()) {
+            return false;
+          }
+        }
+
+        return true;
+      })
       .map((task) => {
         const startDate = parseDateOnly(task.startTargetDate);
         const dueDate = parseDateOnly(task.dueDate);
@@ -1123,7 +1140,7 @@ export function TaskWorkspace({
   }, [activeSourceNoteFilter, notes]);
 
   const renderTaskRow = (task: TaskItem) => {
-    const dueState = getDueState(task.dueDate);
+    const dueState = getDueState(task.dueDate, task.status);
     const isExpanded = expandedTaskId === task.id;
     const referenceDate = startOfToday();
     const activeTodayTask = isActiveTodayTask(task, referenceDate);
@@ -1582,7 +1599,11 @@ export function TaskWorkspace({
         </div>
 
         <div className="task-dashboard-scroll">
-          <section className="task-dashboard-card task-breakdown-card">
+          <section
+            className={`task-dashboard-card task-breakdown-card${
+              isTodayBreakdownOpen ? " is-open" : ""
+            }`}
+          >
             <button
               type="button"
               className="task-breakdown-toggle"
@@ -1603,22 +1624,19 @@ export function TaskWorkspace({
                 ) : (
                   todayBreakdownItems.map((item) => (
                     <article key={item.id} className="task-breakdown-item">
-                      <div className="task-breakdown-item-main">
-                        <strong>{item.title}</strong>
-                        <small>{item.dueLabel}</small>
-                      </div>
-                      <div className="task-breakdown-item-metrics">
-                        <span>
-                          目標 {item.targetToday === null ? "--" : `${Math.round(item.targetToday)}%`}
-                        </span>
-                        <span>現在 {item.currentProgress}%</span>
-                        <span>
-                          目標まで{" "}
-                          {item.remainingHoursToTarget === null
-                            ? "--"
-                            : `${item.remainingHoursToTarget.toFixed(1)}h`}
-                        </span>
-                      </div>
+                      <strong className="task-breakdown-title">{item.title}</strong>
+                      {item.currentProgress >= 100 ? (
+                        <span className="task-breakdown-complete">完了</span>
+                      ) : (
+                        <>
+                          <span className="task-breakdown-progress">
+                            {`${item.currentProgress}%/${
+                              item.targetToday === null ? "--" : `${Math.round(item.targetToday)}%`
+                            }`}
+                          </span>
+                          <span className="task-breakdown-due">{item.dueLabel}</span>
+                        </>
+                      )}
                     </article>
                   ))
                 )}

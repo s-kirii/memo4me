@@ -46,7 +46,14 @@ type EditorDraft = {
   tags: string[];
 };
 
-type ThemeId = "soft-editorial" | "neo-workspace" | "modern-oasis";
+type ThemeId =
+  | "calm-editorial"
+  | "soft-editorial"
+  | "focus-light"
+  | "graphite-terminal"
+  | "girly"
+  | "starlight"
+  | "ocean";
 type WorkspaceId = "notes" | "tasks";
 type SprintCalendarMode = "calendar_days" | "working_days";
 type TaskStatus = "open" | "in_progress" | "done";
@@ -164,11 +171,25 @@ function App() {
   const [isTagFilterMenuOpen, setIsTagFilterMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeId>(() => {
     const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (savedTheme === "neo-workspace" || savedTheme === "modern-oasis") {
+    if (savedTheme === "neo-workspace") {
+      return "focus-light";
+    }
+    if (savedTheme === "modern-oasis") {
+      return "calm-editorial";
+    }
+    if (
+      savedTheme === "calm-editorial" ||
+      savedTheme === "soft-editorial" ||
+      savedTheme === "focus-light" ||
+      savedTheme === "graphite-terminal" ||
+      savedTheme === "girly" ||
+      savedTheme === "starlight" ||
+      savedTheme === "ocean"
+    ) {
       return savedTheme;
     }
 
-    return "soft-editorial";
+    return "calm-editorial";
   });
   const [taskSprintCalendarMode, setTaskSprintCalendarMode] = useState<SprintCalendarMode>(
     () => {

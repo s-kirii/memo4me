@@ -156,7 +156,7 @@
 ### 4.5 テーマ切り替え
 
 1. 歯車ボタンから `テーマ` を開きます
-2. `Soft Editorial`、`Neo Workspace`、`Modern Oasis` から選びます
+2. `Calm Editorial`、`Soft Editorial`、`Focus Light`、`Graphite Terminal`、`Girly`、`Starlight`、`Ocean` から選びます
 3. その場で見た目が切り替わります
 
 補足:

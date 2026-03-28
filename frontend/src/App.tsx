@@ -203,6 +203,7 @@ function App() {
   const [pendingTaskDraftTitle, setPendingTaskDraftTitle] = useState("");
   const [pendingTaskSelectionText, setPendingTaskSelectionText] = useState("");
   const [taskCreateRequestKey, setTaskCreateRequestKey] = useState(0);
+  const [taskCompletedRequestKey, setTaskCompletedRequestKey] = useState(0);
   const [taskNavigationRequestKey, setTaskNavigationRequestKey] = useState(0);
   const [taskReloadRequestKey, setTaskReloadRequestKey] = useState(0);
   const [taskNavigationTargetId, setTaskNavigationTargetId] = useState<string | null>(null);
@@ -871,6 +872,15 @@ function App() {
           </button>
         </div>
         <div className="header-actions">
+          {workspace === "tasks" ? (
+            <button
+              type="button"
+              className="ghost-button header-completed-button"
+              onClick={() => setTaskCompletedRequestKey((current) => current + 1)}
+            >
+              完了一覧
+            </button>
+          ) : null}
           <button className="primary-button" onClick={handlePrimaryAction}>
             {workspace === "notes" ? "新規メモ" : "新規タスク"}
           </button>
@@ -1291,6 +1301,7 @@ function App() {
           initialDraftTitle={pendingTaskDraftTitle}
           initialSelectionText={pendingTaskSelectionText}
           createRequestKey={taskCreateRequestKey}
+          completedRequestKey={taskCompletedRequestKey}
           onConsumePrefill={consumeTaskPrefill}
           navigationRequestKey={taskNavigationRequestKey}
           targetTaskId={taskNavigationTargetId}

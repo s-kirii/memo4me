@@ -455,6 +455,30 @@
   gap: 10px;
 }
 
+.header-completed-button {
+  min-width: 104px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-color: color-mix(in srgb, var(--color-line-strong) 88%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-button-ghost-bg) 92%, white 8%) 0%,
+      color-mix(in srgb, var(--color-button-ghost-bg) 96%, transparent) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 55%, transparent),
+    0 8px 18px color-mix(in srgb, var(--color-shadow) 16%, transparent);
+  white-space: nowrap;
+}
+
+.header-completed-button:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 60%, transparent),
+    0 12px 24px color-mix(in srgb, var(--color-shadow) 22%, transparent);
+}
+
 .workspace-tabs {
   display: inline-flex;
   align-items: center;
@@ -3501,9 +3525,18 @@
 
 .task-detail-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
   gap: 8px;
   padding-top: 4px;
+}
+
+.task-detail-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .task-detail-meta-row {
@@ -3606,7 +3639,11 @@
 }
 
 .task-delete-button {
-  align-self: start;
+  align-self: flex-start;
+  margin-left: 0;
+  margin-right: auto;
+  min-height: 36px;
+  padding: 0 14px;
 }
 
 .task-create-inline-options {
@@ -3739,12 +3776,6 @@
 .task-board-row .tag-pill {
   padding: 6px 10px;
   font-size: 0.78rem;
-}
-
-.task-completed-toggle {
-  min-height: 38px;
-  padding: 8px 12px;
-  white-space: nowrap;
 }
 
 @media (max-width: 980px) {

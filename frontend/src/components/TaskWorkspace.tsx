@@ -64,6 +64,7 @@ type TaskWorkspaceProps = {
   initialDraftTitle?: string;
   initialSelectionText?: string;
   createRequestKey: number;
+  completedRequestKey?: number;
   onConsumePrefill: () => void;
   navigationRequestKey: number;
   targetTaskId?: string | null;
@@ -330,6 +331,7 @@ export function TaskWorkspace({
   initialDraftTitle = "",
   initialSelectionText = "",
   createRequestKey,
+  completedRequestKey = 0,
   onConsumePrefill,
   navigationRequestKey,
   targetTaskId = null,
@@ -341,6 +343,7 @@ export function TaskWorkspace({
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const createInputRef = useRef<HTMLInputElement | null>(null);
   const handledCreateRequestKeyRef = useRef(0);
+  const handledCompletedRequestKeyRef = useRef(0);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [notes, setNotes] = useState<NoteOption[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
@@ -452,6 +455,19 @@ export function TaskWorkspace({
   }, [createRequestKey, isActive]);
 
   useEffect(() => {
+    if (!isActive || completedRequestKey === 0) {
+      return;
+    }
+
+    if (completedRequestKey === handledCompletedRequestKeyRef.current) {
+      return;
+    }
+
+    handledCompletedRequestKeyRef.current = completedRequestKey;
+    setIsCompletedModalOpen(true);
+  }, [completedRequestKey, isActive]);
+
+  useEffect(() => {
     if (!isActive || !isCreateModalOpen) {
       return;
     }
@@ -504,7 +520,7 @@ export function TaskWorkspace({
       const workspace = workspaceRef.current;
       const target = event.target as HTMLElement | null;
       if (!workspace || !target || !workspace.contains(target)) {
-        setExpandedTaskId(null);
+        void closeExpandedTask(expandedTaskId);
         return;
       }
 
@@ -512,14 +528,14 @@ export function TaskWorkspace({
         return;
       }
 
-      setExpandedTaskId(null);
+      void closeExpandedTask(expandedTaskId);
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [expandedTaskId]);
+  }, [expandedTaskId, tasks, taskSourceNoteIds, taskDraftTags, taskEstimatedHours, taskProgressPercents, taskStartTargetDates, taskDueDates, taskNotes]);
 
   const addTag = (currentTags: string[], rawTag: string) => {
     const nextTag = rawTag.trim();
@@ -578,6 +594,26 @@ export function TaskWorkspace({
 
   const areTagsEqual = (left: string[], right: string[]) =>
     left.length === right.length && left.every((tag, index) => tag === right[index]);
+
+  const isTaskDirty = (task: TaskItem) => {
+    const draftSourceNoteId = taskSourceNoteIds[task.id] ?? task.sourceNoteId ?? "";
+    const draftTags = taskDraftTags[task.id] ?? task.tags;
+    const draftEstimatedHours = taskEstimatedHours[task.id] ?? (task.estimatedHours?.toString() ?? "");
+    const draftProgressPercent = taskProgressPercents[task.id] ?? task.progressPercent;
+    const draftStartTargetDate = taskStartTargetDates[task.id] ?? task.startTargetDate ?? "";
+    const draftDueDate = taskDueDates[task.id] ?? task.dueDate ?? "";
+    const draftNoteText = taskNotes[task.id] ?? task.noteText ?? "";
+
+    return (
+      draftSourceNoteId !== (task.sourceNoteId ?? "") ||
+      !areTagsEqual(draftTags, task.tags) ||
+      draftEstimatedHours !== (task.estimatedHours?.toString() ?? "") ||
+      draftProgressPercent !== task.progressPercent ||
+      draftStartTargetDate !== (task.startTargetDate ?? "") ||
+      draftDueDate !== (task.dueDate ?? "") ||
+      draftNoteText !== (task.noteText ?? "")
+    );
+  };
 
   const getSuggestions = (currentTags: string[], input: string) => {
     const normalizedInput = normalizeTag(input);
@@ -697,6 +733,32 @@ export function TaskWorkspace({
     });
 
     resetTaskDraft(updatedTask);
+  };
+
+  const closeExpandedTask = async (taskId: string | null) => {
+    if (!taskId) {
+      return true;
+    }
+
+    const task = tasks.find((currentTask) => currentTask.id === taskId) ?? null;
+    if (!task) {
+      setExpandedTaskId((currentTaskId) => (currentTaskId === taskId ? null : currentTaskId));
+      return true;
+    }
+
+    if (isTaskDirty(task)) {
+      try {
+        await saveTaskDetails(task);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "タスクの保存に失敗しました",
+        );
+        return false;
+      }
+    }
+
+    setExpandedTaskId((currentTaskId) => (currentTaskId === taskId ? null : currentTaskId));
+    return true;
   };
 
   const renderTagEditor = (
@@ -891,8 +953,11 @@ export function TaskWorkspace({
 
       const elapsedUnitsToday = countDaysInclusive(startDate, today, sprintCalendarMode);
       const elapsedUnitsPrevious = countDaysInclusive(startDate, previousDay, sprintCalendarMode);
-      const targetToday = (100 / totalUnits) * elapsedUnitsToday;
-      const targetPrevious = (100 / totalUnits) * elapsedUnitsPrevious;
+      const targetToday = Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsToday));
+      const targetPrevious = Math.max(
+        0,
+        Math.min(100, (100 / totalUnits) * elapsedUnitsPrevious),
+      );
       const dailyTarget = targetToday - targetPrevious;
 
       if (dailyTarget <= 0) {
@@ -906,7 +971,8 @@ export function TaskWorkspace({
         continue;
       }
 
-      hoursNumerator += task.estimatedHours * (task.progressPercent - targetPrevious);
+      const creditedProgress = Math.min(task.progressPercent, targetToday);
+      hoursNumerator += task.estimatedHours * (creditedProgress - targetPrevious);
       hoursDenominator += task.estimatedHours * dailyTarget;
     }
 
@@ -1156,14 +1222,7 @@ export function TaskWorkspace({
     const draftStartTargetDate = taskStartTargetDates[task.id] ?? task.startTargetDate ?? "";
     const draftDueDate = taskDueDates[task.id] ?? task.dueDate ?? "";
     const draftNoteText = taskNotes[task.id] ?? task.noteText ?? "";
-    const isTaskDirty =
-      draftSourceNoteId !== (task.sourceNoteId ?? "") ||
-      !areTagsEqual(draftTags, task.tags) ||
-      draftEstimatedHours !== (task.estimatedHours?.toString() ?? "") ||
-      draftProgressPercent !== task.progressPercent ||
-      draftStartTargetDate !== (task.startTargetDate ?? "") ||
-      draftDueDate !== (task.dueDate ?? "") ||
-      draftNoteText !== (task.noteText ?? "");
+    const taskDirty = isTaskDirty(task);
 
     return (
       <article
@@ -1208,19 +1267,16 @@ export function TaskWorkspace({
 
           <div className="task-board-row-meta-inline">
             <span className={`task-row-due is-${dueState}`}>{formatDateLabel(task.dueDate)}</span>
-            <span className={`task-row-status task-row-meta-item priority-1 is-${task.status}`}>
-              {getStatusLabel(task.status)}
-            </span>
-            <span className="task-row-target task-row-meta-item priority-2">
+            <span className="task-row-target task-row-meta-item priority-1">
               目標 {targetSnapshot === null ? "--" : `${Math.round(targetSnapshot.targetToday)}%`}
             </span>
             <span className="task-row-progress task-row-meta-item priority-0">
               {task.progressPercent}%
             </span>
             {activeTodayTask ? (
-              <span className="task-row-today task-row-meta-item priority-3">今日やる</span>
+              <span className="task-row-today task-row-meta-item priority-2">今日やる</span>
             ) : null}
-            <div className="task-row-tags task-row-meta-item priority-4">
+            <div className="task-row-tags task-row-meta-item priority-3">
               {task.tags.length === 0 ? (
                 <span className="task-row-tag is-empty">タグなし</span>
               ) : (
@@ -1240,17 +1296,17 @@ export function TaskWorkspace({
             type="button"
             className="ghost-button task-complete-button"
             onClick={() => {
+              const nextProgress = task.status === "done" ? 90 : 100;
               setTaskProgressPercents((current) => ({
                 ...current,
-                [task.id]: 100,
+                [task.id]: nextProgress,
               }));
               void updateTask(task.id, {
-                progressPercent: 100,
+                progressPercent: nextProgress,
               });
             }}
-            disabled={task.status === "done"}
           >
-            完了
+            {task.status === "done" ? "再開" : "完了"}
           </button>
 
           <button
@@ -1258,15 +1314,31 @@ export function TaskWorkspace({
             className="ghost-button task-expand-button"
             aria-label={isExpanded ? "詳細を閉じる" : "詳細を表示"}
             title={isExpanded ? "詳細を閉じる" : "詳細を表示"}
-            onClick={() =>
-              setExpandedTaskId((current) => {
-                const nextExpandedId = current === task.id ? null : task.id;
-                if (nextExpandedId === task.id) {
+            onClick={() => {
+              if (isExpanded) {
+                void closeExpandedTask(task.id);
+                return;
+              }
+
+              const openTask = expandedTaskId
+                ? tasks.find((currentTask) => currentTask.id === expandedTaskId) ?? null
+                : null;
+
+              if (openTask && openTask.id !== task.id) {
+                void closeExpandedTask(openTask.id).then((didClose) => {
+                  if (!didClose) {
+                    return;
+                  }
+
                   initializeTaskDraft(task);
-                }
-                return nextExpandedId;
-              })
-            }
+                  setExpandedTaskId(task.id);
+                });
+                return;
+              }
+
+              initializeTaskDraft(task);
+              setExpandedTaskId(task.id);
+            }}
           >
             {isExpanded ? "▴" : "▾"}
           </button>
@@ -1309,14 +1381,6 @@ export function TaskWorkspace({
                   {getStatusLabel(task.status)}
                 </span>
               </div>
-
-              <button
-                type="button"
-                className="ghost-button danger-button task-delete-button"
-                onClick={() => void deleteTask(task.id)}
-              >
-                削除
-              </button>
             </div>
 
             <div className="task-detail-progress-row">
@@ -1428,20 +1492,29 @@ export function TaskWorkspace({
             <div className="task-detail-actions">
               <button
                 type="button"
-                className="ghost-button"
-                onClick={() => resetTaskDraft(task)}
-                disabled={!isTaskDirty}
+                className="ghost-button danger-button task-delete-button"
+                onClick={() => void deleteTask(task.id)}
               >
-                キャンセル
+                削除
               </button>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() => void saveTaskDetails(task)}
-                disabled={!isTaskDirty}
-              >
-                確定
-              </button>
+              <div className="task-detail-actions-right">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => resetTaskDraft(task)}
+                  disabled={!taskDirty}
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => void saveTaskDetails(task)}
+                  disabled={!taskDirty}
+                >
+                  確定
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
@@ -1774,14 +1847,6 @@ export function TaskWorkspace({
               <option value="title_asc">タイトル順</option>
             </select>
           </label>
-          <button
-            type="button"
-            className="ghost-button task-completed-toggle"
-            onClick={() => setIsCompletedModalOpen(true)}
-            disabled={groupedTasks.done.length === 0}
-          >
-            完了一覧
-          </button>
         </div>
 
         <div className="task-board-canvas">
@@ -1836,7 +1901,7 @@ export function TaskWorkspace({
       </section>
 
       {isCompletedModalOpen ? renderModal(
-        <div className="modal-backdrop" onClick={() => setIsCompletedModalOpen(false)}>
+        <div className="modal-backdrop">
           <div
             className="modal-card completed-tasks-modal"
             onClick={(event) => event.stopPropagation()}

@@ -12,16 +12,12 @@
 
 ## 2. 前提
 
-現在の `memo4me` は、以下が入っていることを前提にしています。
-
-- Node.js
-- npm
-- Google Chrome
+通常の利用者向けには、`Electron デスクトップ版` を前提にしています。
 
 補足:
 
-- 現在は browser-mode では Node / npm / Google Chrome が必要です
-- Electron デスクトップ版は別配布物として build 可能です
+- Electron デスクトップ版は `Node.js` / `npm` / `Google Chrome` を別途入れなくても使えます
+- `browser-mode` を使う場合だけ `Node.js` / `npm` / `Google Chrome` が必要です
 - 自動更新機能はまだありません
 - `git clone` は前提ではありません
 - GitHub Releases から zip をダウンロードして使う想定です

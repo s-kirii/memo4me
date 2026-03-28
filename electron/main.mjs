@@ -3,17 +3,35 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import updaterPkg from "electron-updater";
 
 const host = process.env.HOST ?? "127.0.0.1";
 const port = process.env.PORT ?? "8787";
 const appUrl = `http://${host}:${port}`;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const devRendererUrl = process.env.ELECTRON_RENDERER_URL ?? "";
+const { autoUpdater } = updaterPkg;
 
 let mainWindow = null;
 let backendProcess = null;
 let quitting = false;
 const backendLogBuffer = [];
+let autoUpdaterConfigured = false;
+let hasCheckedForUpdates = false;
+
+const autoUpdateSupported = process.platform === "win32" && process.arch === "x64";
+let updateState = {
+  supported: autoUpdateSupported,
+  enabled: false,
+  status: autoUpdateSupported ? "idle" : "unsupported",
+  currentVersion: app.getVersion(),
+  targetVersion: null,
+  progressPercent: null,
+  message: autoUpdateSupported
+    ? "更新を確認できます。"
+    : "自動更新は現在 Windows x64 のデスクトップ版でのみ利用できます。",
+  lastCheckedAt: null,
+};
 
 function getDesktopLogPath() {
   const baseDir = app.isReady()
@@ -71,6 +89,169 @@ function escapeHtml(value) {
 
 function getRecentBackendLogs() {
   return backendLogBuffer.slice(-20).join("\n");
+}
+
+function broadcastUpdateState() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  mainWindow.webContents.send("memo4me:update-state-changed", updateState);
+}
+
+function setUpdateState(patch) {
+  updateState = {
+    ...updateState,
+    ...patch,
+    currentVersion: app.getVersion(),
+  };
+  logDesktop(`update state: ${JSON.stringify(updateState)}`);
+  broadcastUpdateState();
+}
+
+function isAutoUpdateEnabled() {
+  return app.isPackaged && autoUpdateSupported;
+}
+
+async function checkForUpdates({ manual = false } = {}) {
+  if (!autoUpdateSupported) {
+    setUpdateState({
+      enabled: false,
+      status: "unsupported",
+      message: "自動更新は現在 Windows x64 のデスクトップ版でのみ利用できます。",
+    });
+    return updateState;
+  }
+
+  if (!app.isPackaged) {
+    setUpdateState({
+      enabled: false,
+      status: "unsupported",
+      message: "開発環境では自動更新を確認できません。",
+    });
+    return updateState;
+  }
+
+  setUpdateState({
+    enabled: true,
+    status: "checking",
+    progressPercent: null,
+    message: manual ? "更新を確認しています…" : "起動時に更新を確認しています…",
+    lastCheckedAt: new Date().toISOString(),
+  });
+
+  try {
+    await autoUpdater.checkForUpdates();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "更新の確認に失敗しました。";
+    setUpdateState({
+      enabled: true,
+      status: "error",
+      progressPercent: null,
+      message,
+      lastCheckedAt: new Date().toISOString(),
+    });
+  }
+
+  return updateState;
+}
+
+async function configureAutoUpdater() {
+  if (!autoUpdateSupported) {
+    setUpdateState({
+      enabled: false,
+      status: "unsupported",
+      message: "自動更新は現在 Windows x64 のデスクトップ版でのみ利用できます。",
+    });
+    return;
+  }
+
+  if (!app.isPackaged) {
+    setUpdateState({
+      enabled: false,
+      status: "unsupported",
+      message: "開発環境では自動更新を確認できません。",
+    });
+    return;
+  }
+
+  if (autoUpdaterConfigured) {
+    return;
+  }
+
+  autoUpdaterConfigured = true;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on("checking-for-update", () => {
+    setUpdateState({
+      enabled: true,
+      status: "checking",
+      progressPercent: null,
+      message: "更新を確認しています…",
+      lastCheckedAt: new Date().toISOString(),
+    });
+  });
+
+  autoUpdater.on("update-available", (info) => {
+    setUpdateState({
+      enabled: true,
+      status: "available",
+      targetVersion: info.version ?? null,
+      progressPercent: null,
+      message: `新しいバージョン ${info.version ?? ""} を利用できます。`,
+      lastCheckedAt: new Date().toISOString(),
+    });
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    setUpdateState({
+      enabled: true,
+      status: "not-available",
+      targetVersion: null,
+      progressPercent: null,
+      message: "現在のバージョンは最新です。",
+      lastCheckedAt: new Date().toISOString(),
+    });
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    setUpdateState({
+      enabled: true,
+      status: "downloading",
+      progressPercent: progress.percent ?? 0,
+      message: `更新をダウンロードしています… ${Math.round(progress.percent ?? 0)}%`,
+    });
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    setUpdateState({
+      enabled: true,
+      status: "downloaded",
+      targetVersion: info.version ?? null,
+      progressPercent: 100,
+      message: `バージョン ${info.version ?? ""} の準備ができました。再起動して更新できます。`,
+      lastCheckedAt: new Date().toISOString(),
+    });
+  });
+
+  autoUpdater.on("error", (error) => {
+    const message = error instanceof Error ? error.message : "更新処理でエラーが発生しました。";
+    setUpdateState({
+      enabled: true,
+      status: "error",
+      progressPercent: null,
+      message,
+      lastCheckedAt: new Date().toISOString(),
+    });
+  });
+
+  setUpdateState({
+    enabled: true,
+    status: "idle",
+    message: "更新を確認できます。",
+  });
 }
 
 async function showWindowMessage(title, body) {
@@ -205,6 +386,24 @@ async function createMainWindow() {
     await startBundledBackend();
     logDesktop(`loading app url: ${appUrl}`);
     await mainWindow.loadURL(appUrl);
+    broadcastUpdateState();
+
+    if (!hasCheckedForUpdates) {
+      hasCheckedForUpdates = true;
+      void configureAutoUpdater()
+        .then(() => checkForUpdates({ manual: false }))
+        .catch((error) => {
+          const message =
+            error instanceof Error ? error.message : "更新確認の初期化に失敗しました。";
+          setUpdateState({
+            enabled: isAutoUpdateEnabled(),
+            status: "error",
+            progressPercent: null,
+            message,
+            lastCheckedAt: new Date().toISOString(),
+          });
+        });
+    }
   } catch (error) {
     const desktopLogPath = getDesktopLogPath();
     const message =
@@ -227,6 +426,53 @@ function stopBundledBackend() {
 
 ipcMain.handle("memo4me:quit-app", () => {
   app.quit();
+  return { ok: true };
+});
+
+ipcMain.handle("memo4me:get-update-state", () => updateState);
+
+ipcMain.handle("memo4me:check-for-updates", async () => {
+  await configureAutoUpdater();
+  return checkForUpdates({ manual: true });
+});
+
+ipcMain.handle("memo4me:download-update", async () => {
+  await configureAutoUpdater();
+
+  if (!isAutoUpdateEnabled()) {
+    return updateState;
+  }
+
+  try {
+    setUpdateState({
+      enabled: true,
+      status: "downloading",
+      progressPercent: 0,
+      message: "更新をダウンロードしています…",
+    });
+    await autoUpdater.downloadUpdate();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "更新のダウンロードに失敗しました。";
+    setUpdateState({
+      enabled: true,
+      status: "error",
+      progressPercent: null,
+      message,
+      lastCheckedAt: new Date().toISOString(),
+    });
+  }
+
+  return updateState;
+});
+
+ipcMain.handle("memo4me:quit-and-install-update", async () => {
+  await configureAutoUpdater();
+
+  if (updateState.status === "downloaded") {
+    autoUpdater.quitAndInstall();
+  }
+
   return { ok: true };
 });
 

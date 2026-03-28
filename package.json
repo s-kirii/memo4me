@@ -25,6 +25,13 @@
     "directories": {
       "output": "dist-electron"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "s-kirii",
+        "repo": "memo4me"
+      }
+    ],
     "files": [
       "electron/**/*",
       "frontend/dist/**/*",
@@ -61,5 +68,8 @@
       "shortcutName": "memo4me",
       "runAfterFinish": false
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
   }
 }

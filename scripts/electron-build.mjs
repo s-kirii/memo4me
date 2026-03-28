@@ -87,6 +87,9 @@ function migrateExistingArtifacts() {
     "builder-debug.yml",
     "builder-effective-config.yaml",
     "latest.yml",
+    "latest-arm64.yml",
+    "latest-x64.yml",
+    "latest-mac.yml",
   ];
 
   for (const entryName of genericEntries) {
@@ -107,7 +110,12 @@ function organizeCurrentBuild(targetPlatform, targetArch) {
     moveToVersionDir(appVersion, unpackedDir);
     moveToVersionDir(appVersion, `memo4me-${appVersion}-win-${targetArch}.exe`);
     moveToVersionDir(appVersion, `memo4me-${appVersion}-win-${targetArch}.exe.blockmap`);
-    moveToVersionDir(appVersion, "latest.yml", `latest-${targetArch}.yml`);
+    if (targetArch === "x64") {
+      moveToVersionDir(appVersion, "latest.yml");
+      fs.rmSync(path.join(distRootDir, `v${appVersion}`, "latest-x64.yml"), { force: true });
+    } else {
+      moveToVersionDir(appVersion, "latest.yml", `latest-${targetArch}.yml`);
+    }
   }
 
   const metadataDir = path.join(distRootDir, `v${appVersion}`, "metadata", `${targetPlatform}-${targetArch}`);

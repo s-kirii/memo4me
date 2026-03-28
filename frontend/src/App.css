@@ -836,6 +836,11 @@
   padding: 22px;
 }
 
+.update-modal {
+  width: min(640px, 100%);
+  padding: 22px;
+}
+
 .modal-header,
 .modal-footer,
 .modal-section {
@@ -859,6 +864,69 @@
 
 .modal-close {
   align-self: flex-end;
+}
+
+.update-status-card {
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-secondary);
+}
+
+.update-status-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.update-status-row + .update-status-row {
+  margin-top: 10px;
+}
+
+.update-status-label {
+  color: var(--color-muted);
+}
+
+.update-progress-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.update-progress-bar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-input);
+  border: 1px solid var(--color-line);
+}
+
+.update-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-selection-bg), var(--color-accent));
+}
+
+.update-progress-label {
+  min-width: 44px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.update-modal-actions {
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.update-inline-note {
+  margin: 12px 0 0;
 }
 
 .modal-loading {

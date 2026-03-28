@@ -149,6 +149,8 @@ npm run electron:build
 - Windows の通常配布は installer `.exe` を使う
 - `win-arm64-unpacked/` は確認用の生成物で、利用者配布の本線ではない
 - Windows installer は、完了画面の自動起動ではなくインストール後のショートカット起動を前提にする
+- `Windows x64` の Electron デスクトップ版では、設定メニューから更新確認できる
+- `macOS` / `Windows ARM64` は引き続き手動更新
 
 ## AI 機能の現在地
 
@@ -174,6 +176,7 @@ npm run electron:build
 - `タスク抽出` 実行後は AI のタスク候補を確認して選択保存できる
 - AI 保存タスクは `タスク` ワークスペースで `AI` バッジ付きで表示される
 - `タスク` 画面の詳細表示から `元メモ` を開いて `メモ` ワークスペースへ戻れる
+- `Windows x64` の Electron デスクトップ版では、設定メニューから更新確認・ダウンロード・再起動更新ができる
 
 補足:
 

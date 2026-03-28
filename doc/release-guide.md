@@ -23,7 +23,8 @@
 補足:
 
 - `install-*` / `start-*` は browser-mode の確認導線として残す
-- 自動更新はまだ入れない
+- Windows x64 では GitHub Releases 前提の自動更新を順次導入する
+- macOS / Windows ARM64 は当面手動更新を維持する
 - アプリ本体と個人データは分離して保持する
 - 将来 Web 版も見据え、配布物固有ロジックは Electron shell に閉じ込める
 - 現在の配布物は `mac-arm64` / `win-arm64` / `win-x64` を対象にしている
@@ -100,6 +101,7 @@ npm run electron:build:win:x64
 - `dist-electron/v<version>/memo4me-<version>-mac-arm64.dmg`
 - `dist-electron/v<version>/memo4me-<version>-win-arm64.exe`
 - `dist-electron/v<version>/memo4me-<version>-win-x64.exe`
+- `dist-electron/v<version>/latest.yml`
 
 前提環境:
 
@@ -108,11 +110,15 @@ npm run electron:build:win:x64
 
 配布対象外:
 
-- `latest.yml`
 - `*.blockmap`
 - ローカル DB
 - `.env`
 - build の途中生成物
+
+補足:
+
+- `Windows x64` の自動更新を使う場合は、Release asset に `latest.yml` も含める
+- `latest.yml` は `memo4me-<version>-win-x64.exe` と対になる更新メタデータとして扱う
 
 ### 4.3 GitHub Releases 公開
 
@@ -128,18 +134,28 @@ npm run electron:build:win:x64
 - 外部 Chrome は不要であること
 - Node / npm を利用者に要求しないこと
 - 更新時は新しい配布物でアプリ本体を差し替えること
-- 自動更新はまだないこと
+- `Windows x64` では自動更新が使えること
+- `macOS` / `Windows ARM64` は手動更新であること
 - 個人データは通常そのまま引き継がれること
 
 ## 6. 更新運用
 
-現在は自動更新なしのため、更新は手動です。
+更新方式は次のとおりです。
+
+- Windows x64
+  - GitHub Releases 前提の自動更新を利用可能
+- macOS / Windows ARM64
+  - 手動更新
 
 利用者向け案内:
 
 - macOS
   1. 新しい `.dmg` をダウンロード
   2. 新しい `memo4me.app` に差し替える
+- Windows x64
+  1. 設定メニューの `更新` から更新確認する
+  2. 新しい版があればダウンロードする
+  3. `再起動して更新` を実行する
 - Windows
   1. 新しい installer `.exe` をダウンロード
   2. そのまま実行して上書きする
@@ -165,7 +181,7 @@ npm run electron:build:win:x64
 
 将来的には次を検討する。
 
-- 自動更新導線
+- macOS / Windows ARM64 への自動更新拡張
 - 署名 / notarization
 - 配布アーティファクトの整理
 - 必要に応じた browser-mode の縮退

@@ -10,6 +10,7 @@ import { AiAssistantModal } from "./components/AiAssistantModal";
 import { AppearanceModal } from "./components/AppearanceModal";
 import { AiSettingsModal } from "./components/AiSettingsModal";
 import { TaskPlanningSettingsModal } from "./components/TaskPlanningSettingsModal";
+import { UpdateModal } from "./components/UpdateModal";
 import { TaskWorkspace } from "./components/TaskWorkspace";
 import { RichTextEditor } from "./components/RichTextEditor";
 import { request } from "./lib/api";
@@ -167,6 +168,7 @@ function App() {
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [isTaskPlanningSettingsOpen, setIsTaskPlanningSettingsOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isTagFilterMenuOpen, setIsTagFilterMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeId>(() => {
@@ -889,6 +891,16 @@ function App() {
                   type="button"
                   className="settings-popover-item"
                   onClick={() => {
+                    setIsUpdateModalOpen(true);
+                    setIsSettingsMenuOpen(false);
+                  }}
+                >
+                  更新
+                </button>
+                <button
+                  type="button"
+                  className="settings-popover-item"
+                  onClick={() => {
                     setIsAppearanceOpen(true);
                     setIsSettingsMenuOpen(false);
                   }}
@@ -1297,6 +1309,10 @@ function App() {
         selectedTheme={theme}
         onSelectTheme={setTheme}
         onClose={() => setIsAppearanceOpen(false)}
+      />
+      <UpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
       />
       <TaskPlanningSettingsModal
         isOpen={isTaskPlanningSettingsOpen}

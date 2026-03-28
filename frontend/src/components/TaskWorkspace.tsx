@@ -133,45 +133,6 @@ function getDueState(value: string | null) {
   return "upcoming" as const;
 }
 
-function getStartTargetState(value: string | null, status: TaskStatus) {
-  if (!value || status !== "open") {
-    return "none" as const;
-  }
-
-  const targetDate = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(targetDate.getTime())) {
-    return "none" as const;
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return targetDate.getTime() < today.getTime() ? "late" : "none";
-}
-
-function getForecastLevel(input: {
-  overdueCount: number;
-  dueTodayCount: number;
-  lateStartCount: number;
-  inProgressCount: number;
-}) {
-  const score =
-    input.overdueCount * 3 +
-    input.dueTodayCount * 2 +
-    input.lateStartCount +
-    (input.inProgressCount >= 6 ? 1 : 0);
-
-  if (score >= 6) {
-    return "risk" satisfies FireForecastLevel;
-  }
-
-  if (score >= 2) {
-    return "watch" satisfies FireForecastLevel;
-  }
-
-  return "safe" satisfies FireForecastLevel;
-}
-
 function getForecastLabel(level: FireForecastLevel) {
   if (level === "risk") {
     return "危険";
@@ -180,23 +141,6 @@ function getForecastLabel(level: FireForecastLevel) {
     return "注意";
   }
   return "安全";
-}
-
-function getForecastBody(input: {
-  overdueCount: number;
-  dueTodayCount: number;
-  lateStartCount: number;
-}) {
-  if (input.overdueCount > 0) {
-    return `期限超過 ${input.overdueCount} 件`;
-  }
-  if (input.dueTodayCount > 0) {
-    return `本日期限 ${input.dueTodayCount} 件`;
-  }
-  if (input.lateStartCount > 0) {
-    return `未着手の遅延 ${input.lateStartCount} 件`;
-  }
-  return "大きな詰まりはありません";
 }
 
 function getStatusLabel(status: TaskStatus) {
@@ -321,16 +265,56 @@ function countDaysInclusive(
 }
 
 function isEffectiveTodayTask(task: TaskItem, referenceDate = startOfToday()) {
-  if (task.status === "done") {
-    return false;
-  }
-
   const startDate = parseDateOnly(task.startTargetDate);
   if (!startDate) {
     return false;
   }
 
   return isSameOrAfter(referenceDate, startDate);
+}
+
+function isActiveTodayTask(task: TaskItem, referenceDate = startOfToday()) {
+  if (task.status === "done") {
+    return false;
+  }
+
+  return isEffectiveTodayTask(task, referenceDate);
+}
+
+function calculateTodayTargetSnapshot(
+  task: TaskItem,
+  referenceDate: Date,
+  calendarMode: SprintCalendarMode,
+) {
+  const startDate = parseDateOnly(task.startTargetDate);
+  const dueDate = parseDateOnly(task.dueDate);
+
+  if (!startDate || !dueDate) {
+    return null;
+  }
+
+  const totalUnits = countDaysInclusive(startDate, dueDate, calendarMode);
+  if (totalUnits <= 0) {
+    return null;
+  }
+
+  const previousDay = addDays(referenceDate, -1);
+  const elapsedUnitsToday = countDaysInclusive(startDate, referenceDate, calendarMode);
+  const elapsedUnitsPrevious = countDaysInclusive(startDate, previousDay, calendarMode);
+  const targetToday = Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsToday));
+  const targetPrevious = Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsPrevious));
+  const remainingPercentToTarget = Math.round((targetToday - task.progressPercent) * 10) / 10;
+  const remainingHoursToTarget =
+    task.estimatedHours === null || task.estimatedHours <= 0
+      ? null
+      : Math.round(((task.estimatedHours * remainingPercentToTarget) / 100) * 10) / 10;
+
+  return {
+    targetToday,
+    targetPrevious,
+    remainingPercentToTarget,
+    remainingHoursToTarget,
+  };
 }
 
 export function TaskWorkspace({
@@ -369,6 +353,7 @@ export function TaskWorkspace({
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isForecastModalOpen, setIsForecastModalOpen] = useState(false);
+  const [isTodayBreakdownOpen, setIsTodayBreakdownOpen] = useState(false);
   const [forecastMode, setForecastMode] = useState<ForecastMode>("weekly");
   const [activeForecastDay, setActiveForecastDay] = useState<ForecastDay | null>(null);
 
@@ -384,6 +369,8 @@ export function TaskWorkspace({
 
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [taskTagInputs, setTaskTagInputs] = useState<Record<string, string>>({});
+  const [taskDraftTags, setTaskDraftTags] = useState<Record<string, string[]>>({});
+  const [taskSourceNoteIds, setTaskSourceNoteIds] = useState<Record<string, string>>({});
   const [taskEstimatedHours, setTaskEstimatedHours] = useState<Record<string, string>>({});
   const [taskProgressPercents, setTaskProgressPercents] = useState<Record<string, number>>({});
   const [taskStartTargetDates, setTaskStartTargetDates] = useState<Record<string, string>>({});
@@ -546,6 +533,48 @@ export function TaskWorkspace({
   const removeTag = (currentTags: string[], tagToRemove: string) =>
     currentTags.filter((tag) => tag !== tagToRemove);
 
+  const initializeTaskDraft = (task: TaskItem) => {
+    setTaskSourceNoteIds((current) => ({
+      ...current,
+      [task.id]: task.sourceNoteId ?? "",
+    }));
+    setTaskDraftTags((current) => ({
+      ...current,
+      [task.id]: task.tags,
+    }));
+    setTaskTagInputs((current) => ({
+      ...current,
+      [task.id]: current[task.id] ?? "",
+    }));
+    setTaskEstimatedHours((current) => ({
+      ...current,
+      [task.id]: task.estimatedHours?.toString() ?? "",
+    }));
+    setTaskProgressPercents((current) => ({
+      ...current,
+      [task.id]: task.progressPercent,
+    }));
+    setTaskStartTargetDates((current) => ({
+      ...current,
+      [task.id]: task.startTargetDate ?? "",
+    }));
+    setTaskDueDates((current) => ({
+      ...current,
+      [task.id]: task.dueDate ?? "",
+    }));
+    setTaskNotes((current) => ({
+      ...current,
+      [task.id]: task.noteText ?? "",
+    }));
+  };
+
+  const resetTaskDraft = (task: TaskItem) => {
+    initializeTaskDraft(task);
+  };
+
+  const areTagsEqual = (left: string[], right: string[]) =>
+    left.length === right.length && left.every((tag, index) => tag === right[index]);
+
   const getSuggestions = (currentTags: string[], input: string) => {
     const normalizedInput = normalizeTag(input);
     if (!normalizedInput) {
@@ -639,6 +668,31 @@ export function TaskWorkspace({
     setTasks((currentTasks) => currentTasks.filter((task) => task.id !== taskId));
     setExpandedTaskId((currentTaskId) => (currentTaskId === taskId ? null : currentTaskId));
     await loadWorkspaceData();
+  };
+
+  const saveTaskDetails = async (task: TaskItem) => {
+    const nextProgress = taskProgressPercents[task.id] ?? task.progressPercent;
+    const nextEstimatedHoursRaw =
+      taskEstimatedHours[task.id] ?? (task.estimatedHours?.toString() ?? "");
+    const nextEstimatedHours =
+      nextEstimatedHoursRaw.trim() === "" ? null : Number(nextEstimatedHoursRaw);
+    const nextStartTargetDate = taskStartTargetDates[task.id] ?? task.startTargetDate ?? "";
+    const nextDueDate = taskDueDates[task.id] ?? task.dueDate ?? "";
+    const nextNoteText = taskNotes[task.id] ?? task.noteText ?? "";
+    const nextSourceNoteId = taskSourceNoteIds[task.id] ?? task.sourceNoteId ?? "";
+    const nextTags = taskDraftTags[task.id] ?? task.tags;
+
+    const updatedTask = await updateTask(task.id, {
+      progressPercent: nextProgress,
+      estimatedHours: nextEstimatedHours,
+      startTargetDate: nextStartTargetDate || null,
+      dueDate: nextDueDate || null,
+      noteText: nextNoteText || null,
+      sourceNoteId: nextSourceNoteId || null,
+      tags: nextTags,
+    });
+
+    resetTaskDraft(updatedTask);
   };
 
   const renderTagEditor = (
@@ -738,7 +792,7 @@ export function TaskWorkspace({
     const today = startOfToday();
 
     const nextTasks = tasks.filter((task) => {
-      const effectiveTodayTask = isEffectiveTodayTask(task, today);
+      const activeTodayTask = isActiveTodayTask(task, today);
       const matchesQuery =
         normalizedQuery.length === 0 ||
         task.title.toLowerCase().includes(normalizedQuery) ||
@@ -754,7 +808,7 @@ export function TaskWorkspace({
         activeSourceNoteFilter === "__all__" || task.sourceNoteId === activeSourceNoteFilter;
 
       const matchesTodayTask =
-        activeTodayTaskFilter === "__all__" || effectiveTodayTask;
+        activeTodayTaskFilter === "__all__" || activeTodayTask;
 
       return matchesQuery && matchesTag && matchesSourceNote && matchesTodayTask;
     });
@@ -799,87 +853,10 @@ export function TaskWorkspace({
     [filteredTasks],
   );
 
-  const allMetrics = useMemo(() => {
-    const totalCount = filteredTasks.length;
-    const openCount = filteredTasks.filter((task) => task.status === "open").length;
-    const inProgressCount = filteredTasks.filter((task) => task.status === "in_progress").length;
-    const doneCount = filteredTasks.filter((task) => task.status === "done").length;
-    const today = startOfToday();
-    const todayTaskCount = filteredTasks.filter((task) => isEffectiveTodayTask(task, today)).length;
-    const overdueCount = filteredTasks.filter(
-      (task) => task.status !== "done" && getDueState(task.dueDate) === "overdue",
-    ).length;
-    const dueTodayCount = filteredTasks.filter(
-      (task) => task.status !== "done" && getDueState(task.dueDate) === "today",
-    ).length;
-    const lateStartCount = filteredTasks.filter(
-      (task) => getStartTargetState(task.startTargetDate, task.status) === "late",
-    ).length;
-
-    const tagStats = new Map<
-      string,
-      { total: number; done: number; active: number }
-    >();
-    for (const task of filteredTasks) {
-      for (const tag of task.tags) {
-        const current = tagStats.get(tag) ?? { total: 0, done: 0, active: 0 };
-        current.total += 1;
-        if (task.status === "done") {
-          current.done += 1;
-        } else {
-          current.active += 1;
-        }
-        tagStats.set(tag, current);
-      }
-    }
-
-    const topTags = [...tagStats.entries()]
-      .sort((left, right) => right[1].total - left[1].total)
-      .slice(0, 5)
-      .map(([name, stat]) => ({
-        name,
-        total: stat.total,
-        done: stat.done,
-        active: stat.active,
-        completionRatio: stat.total === 0 ? 0 : Math.round((stat.done / stat.total) * 100),
-      }));
-
-    const completionRatio =
-      totalCount === 0 ? 0 : Math.round((doneCount / totalCount) * 100);
-    const forecastLevel = getForecastLevel({
-      overdueCount,
-      dueTodayCount,
-      lateStartCount,
-      inProgressCount,
-    });
-
-    return {
-      totalCount,
-      openCount,
-      inProgressCount,
-      doneCount,
-      todayTaskCount,
-      overdueCount,
-      dueTodayCount,
-      lateStartCount,
-      completionRatio,
-      forecastLevel,
-      forecastLabel: getForecastLabel(forecastLevel),
-      forecastBody: getForecastBody({
-        overdueCount,
-        dueTodayCount,
-        lateStartCount,
-      }),
-      topTags,
-    };
-  }, [filteredTasks]);
-
   const todaySprintSummary = useMemo(() => {
     const today = startOfToday();
     const previousDay = addDays(today, -1);
-    const todayTasks = filteredTasks.filter(
-      (task) => isEffectiveTodayTask(task, today) && task.status !== "done",
-    );
+    const todayTasks = filteredTasks.filter((task) => isEffectiveTodayTask(task, today));
 
     let eligibleCount = 0;
     let preStartCount = 0;
@@ -968,6 +945,59 @@ export function TaskWorkspace({
               ? "今日ぶんの目標に対してまだ不足があります"
               : "昨日までの未達を持ち越しています",
     };
+  }, [filteredTasks, sprintCalendarMode]);
+
+  const todayBreakdownItems = useMemo(() => {
+    const today = startOfToday();
+    const previousDay = addDays(today, -1);
+
+    return filteredTasks
+      .filter((task) => isEffectiveTodayTask(task, today))
+      .map((task) => {
+        const startDate = parseDateOnly(task.startTargetDate);
+        const dueDate = parseDateOnly(task.dueDate);
+        const totalUnits =
+          startDate && dueDate ? countDaysInclusive(startDate, dueDate, sprintCalendarMode) : 0;
+        const elapsedUnitsToday =
+          startDate && dueDate ? countDaysInclusive(startDate, today, sprintCalendarMode) : 0;
+        const elapsedUnitsPrevious =
+          startDate && dueDate ? countDaysInclusive(startDate, previousDay, sprintCalendarMode) : 0;
+        const targetToday =
+          totalUnits > 0 ? Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsToday)) : null;
+        const targetPrevious =
+          totalUnits > 0
+            ? Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsPrevious))
+            : null;
+        const remainingPercentToTarget =
+          targetToday === null ? null : Math.round((targetToday - task.progressPercent) * 10) / 10;
+        const remainingHoursToTarget =
+          remainingPercentToTarget === null || task.estimatedHours === null || task.estimatedHours <= 0
+            ? null
+            : Math.round((task.estimatedHours * remainingPercentToTarget) / 100 * 10) / 10;
+
+        return {
+          id: task.id,
+          title: task.title,
+          dueDate: task.dueDate,
+          dueLabel: formatDateLabel(task.dueDate),
+          targetToday,
+          targetPrevious,
+          currentProgress: task.progressPercent,
+          remainingHoursToTarget,
+        };
+      })
+      .sort((left, right) => {
+        const leftDue = left.dueDate
+          ? new Date(`${left.dueDate}T00:00:00`).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const rightDue = right.dueDate
+          ? new Date(`${right.dueDate}T00:00:00`).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        if (leftDue !== rightDue) {
+          return leftDue - rightDue;
+        }
+        return left.title.localeCompare(right.title, "ja");
+      });
   }, [filteredTasks, sprintCalendarMode]);
 
   const forecast = useMemo(() => {
@@ -1095,7 +1125,28 @@ export function TaskWorkspace({
   const renderTaskRow = (task: TaskItem) => {
     const dueState = getDueState(task.dueDate);
     const isExpanded = expandedTaskId === task.id;
-    const effectiveTodayTask = isEffectiveTodayTask(task);
+    const referenceDate = startOfToday();
+    const activeTodayTask = isActiveTodayTask(task, referenceDate);
+    const targetSnapshot = calculateTodayTargetSnapshot(
+      task,
+      referenceDate,
+      sprintCalendarMode,
+    );
+    const draftSourceNoteId = taskSourceNoteIds[task.id] ?? task.sourceNoteId ?? "";
+    const draftTags = taskDraftTags[task.id] ?? task.tags;
+    const draftEstimatedHours = taskEstimatedHours[task.id] ?? (task.estimatedHours?.toString() ?? "");
+    const draftProgressPercent = taskProgressPercents[task.id] ?? task.progressPercent;
+    const draftStartTargetDate = taskStartTargetDates[task.id] ?? task.startTargetDate ?? "";
+    const draftDueDate = taskDueDates[task.id] ?? task.dueDate ?? "";
+    const draftNoteText = taskNotes[task.id] ?? task.noteText ?? "";
+    const isTaskDirty =
+      draftSourceNoteId !== (task.sourceNoteId ?? "") ||
+      !areTagsEqual(draftTags, task.tags) ||
+      draftEstimatedHours !== (task.estimatedHours?.toString() ?? "") ||
+      draftProgressPercent !== task.progressPercent ||
+      draftStartTargetDate !== (task.startTargetDate ?? "") ||
+      draftDueDate !== (task.dueDate ?? "") ||
+      draftNoteText !== (task.noteText ?? "");
 
     return (
       <article
@@ -1106,17 +1157,17 @@ export function TaskWorkspace({
           <label className="task-board-row-main">
             <input
               type="checkbox"
-              checked={effectiveTodayTask}
+              checked={activeTodayTask}
               disabled
               title={
                 task.status === "done"
                   ? "完了タスクは今日やる対象外です"
-                  : effectiveTodayTask
+                  : activeTodayTask
                     ? "着手日以降のため自動で今日やるに含まれています"
                     : "着手日までは今日やるに含まれません"
               }
               aria-label={
-                effectiveTodayTask
+                activeTodayTask
                   ? "着手日以降のため今日やるに含まれています"
                   : "まだ今日やる対象ではありません"
               }
@@ -1140,10 +1191,19 @@ export function TaskWorkspace({
 
           <div className="task-board-row-meta-inline">
             <span className={`task-row-due is-${dueState}`}>{formatDateLabel(task.dueDate)}</span>
-            <span className={`task-row-status is-${task.status}`}>{getStatusLabel(task.status)}</span>
-            <span className="task-row-progress">{task.progressPercent}%</span>
-            {effectiveTodayTask ? <span className="task-row-today">今日やる</span> : null}
-            <div className="task-row-tags">
+            <span className={`task-row-status task-row-meta-item priority-1 is-${task.status}`}>
+              {getStatusLabel(task.status)}
+            </span>
+            <span className="task-row-target task-row-meta-item priority-2">
+              目標 {targetSnapshot === null ? "--" : `${Math.round(targetSnapshot.targetToday)}%`}
+            </span>
+            <span className="task-row-progress task-row-meta-item priority-0">
+              {task.progressPercent}%
+            </span>
+            {activeTodayTask ? (
+              <span className="task-row-today task-row-meta-item priority-3">今日やる</span>
+            ) : null}
+            <div className="task-row-tags task-row-meta-item priority-4">
               {task.tags.length === 0 ? (
                 <span className="task-row-tag is-empty">タグなし</span>
               ) : (
@@ -1161,10 +1221,35 @@ export function TaskWorkspace({
 
           <button
             type="button"
+            className="ghost-button task-complete-button"
+            onClick={() => {
+              setTaskProgressPercents((current) => ({
+                ...current,
+                [task.id]: 100,
+              }));
+              void updateTask(task.id, {
+                progressPercent: 100,
+              });
+            }}
+            disabled={task.status === "done"}
+          >
+            完了
+          </button>
+
+          <button
+            type="button"
             className="ghost-button task-expand-button"
             aria-label={isExpanded ? "詳細を閉じる" : "詳細を表示"}
             title={isExpanded ? "詳細を閉じる" : "詳細を表示"}
-            onClick={() => setExpandedTaskId((current) => (current === task.id ? null : task.id))}
+            onClick={() =>
+              setExpandedTaskId((current) => {
+                const nextExpandedId = current === task.id ? null : task.id;
+                if (nextExpandedId === task.id) {
+                  initializeTaskDraft(task);
+                }
+                return nextExpandedId;
+              })
+            }
           >
             {isExpanded ? "▴" : "▾"}
           </button>
@@ -1177,11 +1262,12 @@ export function TaskWorkspace({
                 {task.createdBy === "ai" ? <span className="task-ai-badge">AI</span> : null}
                 <select
                   className="task-note-select"
-                  value={task.sourceNoteId ?? ""}
+                  value={draftSourceNoteId}
                   onChange={(event) =>
-                    void updateTask(task.id, {
-                      sourceNoteId: event.target.value || null,
-                    })
+                    setTaskSourceNoteIds((current) => ({
+                      ...current,
+                      [task.id]: event.target.value,
+                    }))
                   }
                   aria-label="紐付けメモ"
                 >
@@ -1192,11 +1278,11 @@ export function TaskWorkspace({
                     </option>
                   ))}
                 </select>
-                {task.sourceNoteId ? (
+                {draftSourceNoteId ? (
                   <button
                     type="button"
                     className="text-button"
-                    onClick={() => onOpenNote(task.sourceNoteId as string)}
+                    onClick={() => onOpenNote(draftSourceNoteId)}
                   >
                     開く
                   </button>
@@ -1220,15 +1306,12 @@ export function TaskWorkspace({
               <div className="task-inline-field task-inline-field-progress">
                 <span>進捗率</span>
                 {renderProgressStepper(
-                  taskProgressPercents[task.id] ?? task.progressPercent,
+                  draftProgressPercent,
                   (nextValue) => {
                     setTaskProgressPercents((current) => ({
                       ...current,
                       [task.id]: nextValue,
                     }));
-                    void updateTask(task.id, {
-                      progressPercent: nextValue,
-                    });
                   },
                   `タスク「${task.title}」の進捗率`,
                 )}
@@ -1239,20 +1322,12 @@ export function TaskWorkspace({
                   type="number"
                   min="0"
                   step="0.5"
-                  value={taskEstimatedHours[task.id] ?? (task.estimatedHours?.toString() ?? "")}
+                  value={draftEstimatedHours}
                   onChange={(event) =>
                     setTaskEstimatedHours((current) => ({
                       ...current,
                       [task.id]: event.target.value,
                     }))
-                  }
-                  onBlur={(event) =>
-                    void updateTask(task.id, {
-                      estimatedHours:
-                        event.target.value.trim() === ""
-                          ? null
-                          : Number(event.target.value),
-                    })
                   }
                   placeholder="未設定"
                 />
@@ -1264,17 +1339,12 @@ export function TaskWorkspace({
                 <span>着手目標</span>
                 <input
                   type="date"
-                  value={taskStartTargetDates[task.id] ?? task.startTargetDate ?? ""}
+                  value={draftStartTargetDate}
                   onChange={(event) =>
                     setTaskStartTargetDates((current) => ({
                       ...current,
                       [task.id]: event.target.value,
                     }))
-                  }
-                  onBlur={(event) =>
-                    void updateTask(task.id, {
-                      startTargetDate: event.target.value || null,
-                    })
                   }
                 />
               </label>
@@ -1282,17 +1352,12 @@ export function TaskWorkspace({
                 <span>期日</span>
                 <input
                   type="date"
-                  value={taskDueDates[task.id] ?? task.dueDate ?? ""}
+                  value={draftDueDate}
                   onChange={(event) =>
                     setTaskDueDates((current) => ({
                       ...current,
                       [task.id]: event.target.value,
                     }))
-                  }
-                  onBlur={(event) =>
-                    void updateTask(task.id, {
-                      dueDate: event.target.value || null,
-                    })
                   }
                 />
               </label>
@@ -1303,7 +1368,7 @@ export function TaskWorkspace({
             ) : null}
 
             {renderTagEditor(
-              task.tags,
+              draftTags,
               taskTagInputs[task.id] ?? "",
               (value) =>
                 setTaskTagInputs((current) => ({
@@ -1311,36 +1376,56 @@ export function TaskWorkspace({
                   [task.id]: value,
                 })),
               (rawTag) => {
-                const nextTags = addTag(task.tags, rawTag);
-                if (nextTags === task.tags) {
+                const nextTags = addTag(draftTags, rawTag);
+                if (nextTags === draftTags) {
                   return;
                 }
 
                 setTaskTagInputs((current) => ({ ...current, [task.id]: "" }));
-                void updateTask(task.id, { tags: nextTags });
+                setTaskDraftTags((current) => ({
+                  ...current,
+                  [task.id]: nextTags,
+                }));
               },
               (tagToRemove) => {
-                void updateTask(task.id, { tags: removeTag(task.tags, tagToRemove) });
+                setTaskDraftTags((current) => ({
+                  ...current,
+                  [task.id]: removeTag(draftTags, tagToRemove),
+                }));
               },
             )}
 
             <textarea
               className="task-note-textarea"
               rows={2}
-              value={taskNotes[task.id] ?? task.noteText ?? ""}
+              value={draftNoteText}
               onChange={(event) =>
                 setTaskNotes((current) => ({
                   ...current,
                   [task.id]: event.target.value,
                 }))
               }
-              onBlur={(event) =>
-                void updateTask(task.id, {
-                  noteText: event.target.value || null,
-                })
-              }
               placeholder="2行メモ"
             />
+
+            <div className="task-detail-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => resetTaskDraft(task)}
+                disabled={!isTaskDirty}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => void saveTaskDetails(task)}
+                disabled={!isTaskDirty}
+              >
+                確定
+              </button>
+            </div>
           </div>
         ) : null}
       </article>
@@ -1476,12 +1561,9 @@ export function TaskWorkspace({
     >
       <aside className="task-dashboard-panel">
         <div className="task-dashboard-header">
-          <div>
-            <p className="eyebrow">タスクダッシュボード</p>
-            <h2>状況サマリー</h2>
-          </div>
+          <p className="eyebrow">タスクダッシュボード</p>
           <p className="task-dashboard-caption">
-            今日やるタスクを中心に {todaySprintSummary.calendarModeLabel} で集計
+            {todaySprintSummary.calendarModeLabel} で集計
           </p>
         </div>
 
@@ -1497,25 +1579,52 @@ export function TaskWorkspace({
             </strong>
             <span>今日の達成率</span>
           </div>
+        </div>
 
-          <div className="task-kpi-grid">
-            <div className="task-kpi-card">
-              <strong>{todaySprintSummary.todayTaskCount}</strong>
-              <span>今日やる</span>
-            </div>
-            <div className="task-kpi-card">
-              <strong>{todaySprintSummary.eligibleCount}</strong>
-              <span>計算対象</span>
-            </div>
-            <div className="task-kpi-card">
-              <strong>{todaySprintSummary.preStartCount}</strong>
-              <span>着手前</span>
-            </div>
-            <div className="task-kpi-card">
-              <strong>{todaySprintSummary.unestimatedCount}</strong>
-              <span>未見積もり</span>
-            </div>
-          </div>
+        <div className="task-dashboard-scroll">
+          <section className="task-dashboard-card task-breakdown-card">
+            <button
+              type="button"
+              className="task-breakdown-toggle"
+              onClick={() => setIsTodayBreakdownOpen((current) => !current)}
+              aria-expanded={isTodayBreakdownOpen}
+            >
+              <span>今日の内訳</span>
+              <span className="task-breakdown-toggle-meta">{todayBreakdownItems.length} 件</span>
+              <span className="task-breakdown-toggle-icon">
+                {isTodayBreakdownOpen ? "▲" : "▼"}
+              </span>
+            </button>
+
+            {isTodayBreakdownOpen ? (
+              <div className="task-breakdown-list">
+                {todayBreakdownItems.length === 0 ? (
+                  <p className="task-dashboard-empty">今日やるタスクはありません</p>
+                ) : (
+                  todayBreakdownItems.map((item) => (
+                    <article key={item.id} className="task-breakdown-item">
+                      <div className="task-breakdown-item-main">
+                        <strong>{item.title}</strong>
+                        <small>{item.dueLabel}</small>
+                      </div>
+                      <div className="task-breakdown-item-metrics">
+                        <span>
+                          目標 {item.targetToday === null ? "--" : `${Math.round(item.targetToday)}%`}
+                        </span>
+                        <span>現在 {item.currentProgress}%</span>
+                        <span>
+                          目標まで{" "}
+                          {item.remainingHoursToTarget === null
+                            ? "--"
+                            : `${item.remainingHoursToTarget.toFixed(1)}h`}
+                        </span>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            ) : null}
+          </section>
 
           <div className="task-summary-card">
             <div className="task-summary-card-header">
@@ -1551,85 +1660,36 @@ export function TaskWorkspace({
                   ? `予報対象外 ${forecast.unestimatedCount + forecast.unscheduledCount} 件`
                   : "大きな詰まりはありません"}
             </p>
+            <small className="task-forecast-card-meta">
+              予報対象 {forecast.forecastableTaskCount} 件
+            </small>
           </div>
-        </div>
-
-        <div className="task-dashboard-detail">
+          <div className="task-dashboard-detail">
           <section className="task-dashboard-card">
             <div className="task-dashboard-card-header">
-              <h3>今日の内訳</h3>
-              <span>{todaySprintSummary.calendarModeLabel}</span>
+              <h3>集計</h3>
+              <span>今日やる基準</span>
             </div>
-            <div className="task-dashboard-bars">
-              <div className="task-dashboard-bar-row">
-                <span>今日やる</span>
-                <div className="task-dashboard-bar-track is-static" />
+            <div className="task-kpi-grid">
+              <div className="task-kpi-card">
                 <strong>{todaySprintSummary.todayTaskCount}</strong>
+                <span>今日やる</span>
               </div>
-              <div className="task-dashboard-bar-row">
-                <span>計算対象</span>
-                <div className="task-dashboard-bar-track is-static" />
+              <div className="task-kpi-card">
                 <strong>{todaySprintSummary.eligibleCount}</strong>
+                <span>計算対象</span>
               </div>
-              <div className="task-dashboard-bar-row">
-                <span>着手前</span>
-                <div className="task-dashboard-bar-track is-static" />
+              <div className="task-kpi-card">
                 <strong>{todaySprintSummary.preStartCount}</strong>
+                <span>着手前</span>
               </div>
-              <div className="task-dashboard-bar-row">
-                <span>日付未設定</span>
-                <div className="task-dashboard-bar-track is-static" />
-                <strong>{todaySprintSummary.unscheduledCount}</strong>
+              <div className="task-kpi-card">
+                <strong>{todaySprintSummary.unestimatedCount}</strong>
+                <span>未見積もり</span>
               </div>
             </div>
           </section>
-
-          <section className="task-dashboard-card">
-            <div className="task-dashboard-card-header">
-              <h3>計算メモ</h3>
-              <span>単一指標</span>
-            </div>
-            <ul className="task-dashboard-list">
-              <li>表示方式: 今日の目標に対して今どこにいるか</li>
-              <li>日数計算: {todaySprintSummary.calendarModeLabel}</li>
-              <li>集計: 想定工数で重み付け</li>
-              <li>着手日前のタスク: 計算対象外</li>
-              <li>未見積もり: {todaySprintSummary.unestimatedCount} 件</li>
-              <li>日付未設定: {todaySprintSummary.unscheduledCount} 件</li>
-            </ul>
-          </section>
-
-          <section className="task-dashboard-card">
-            <div className="task-dashboard-card-header">
-              <h3>炎上予報</h3>
-              <span>{forecastMode === "weekly" ? "週間基準" : "月間基準"}</span>
-            </div>
-            <div className="task-forecast-summary">
-              <strong>
-                {forecast.highestRiskDay && forecast.highestRiskDay.totalHours > 0
-                  ? `${forecast.highestRiskDay.label} ${getForecastLabel(
-                      forecast.highestRiskDay.level,
-                    )}`
-                  : "週間の負荷を表示します"}
-              </strong>
-              <span>{`予報対象 ${forecast.forecastableTaskCount} 件`}</span>
-            </div>
-            <ul className="task-dashboard-list">
-              <li>期限超過: {allMetrics.overdueCount} 件</li>
-              <li>本日期限: {allMetrics.dueTodayCount} 件</li>
-              <li>今日やる: {allMetrics.todayTaskCount} 件</li>
-              <li>着手遅延: {allMetrics.lateStartCount} 件</li>
-              <li>未見積もり: {forecast.unestimatedCount} 件</li>
-              <li>期日未設定: {forecast.unscheduledCount} 件</li>
-            </ul>
-            <button
-              type="button"
-              className="ghost-button task-forecast-open-secondary"
-              onClick={() => setIsForecastModalOpen(true)}
-            >
-              詳細な予報を開く
-            </button>
-          </section>
+          </div>
         </div>
       </aside>
 

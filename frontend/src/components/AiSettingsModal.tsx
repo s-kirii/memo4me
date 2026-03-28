@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 type AiProviderId = "openai_compatible" | "azure_openai" | "gemini";
+type AiApiCompatibilityMode = "auto" | "responses" | "chat_completions";
 
 type AiProviderConfig = {
   provider: AiProviderId;
   endpoint: string;
   model: string;
+  compatibilityMode: AiApiCompatibilityMode;
   hasApiKey: boolean;
   updatedAt: string | null;
 };
@@ -23,6 +25,7 @@ type AiSettingsResponse = {
 type ProviderDraft = {
   endpoint: string;
   model: string;
+  compatibilityMode: AiApiCompatibilityMode;
   apiKey: string;
   hasApiKey: boolean;
   clearApiKey: boolean;
@@ -107,6 +110,7 @@ function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
     openai_compatible: {
       endpoint: byId.openai_compatible.defaultEndpoint,
       model: "",
+      compatibilityMode: "auto",
       apiKey: "",
       hasApiKey: false,
       clearApiKey: false,
@@ -115,6 +119,7 @@ function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
     azure_openai: {
       endpoint: byId.azure_openai.defaultEndpoint,
       model: "",
+      compatibilityMode: "auto",
       apiKey: "",
       hasApiKey: false,
       clearApiKey: false,
@@ -123,6 +128,7 @@ function createEmptyDraft(): Record<AiProviderId, ProviderDraft> {
     gemini: {
       endpoint: byId.gemini.defaultEndpoint,
       model: "",
+      compatibilityMode: "auto",
       apiKey: "",
       hasApiKey: false,
       clearApiKey: false,
@@ -141,6 +147,7 @@ function applySettingsToDrafts(settings: AiSettingsResponse) {
     nextDrafts[providerConfig.provider] = {
       endpoint: providerConfig.endpoint || defaultsById[providerConfig.provider],
       model: providerConfig.model,
+      compatibilityMode: providerConfig.compatibilityMode ?? "auto",
       apiKey: "",
       hasApiKey: providerConfig.hasApiKey,
       clearApiKey: false,
@@ -272,6 +279,7 @@ export function AiSettingsModal({
               provider: option.id,
               endpoint: draft.endpoint,
               model: draft.model,
+              compatibilityMode: draft.compatibilityMode,
               apiKey: draft.apiKey || undefined,
               clearApiKey: draft.clearApiKey,
             };
@@ -310,6 +318,7 @@ export function AiSettingsModal({
             provider: selectedProvider,
             endpoint: selectedDraft.endpoint,
             model: selectedDraft.model,
+            compatibilityMode: selectedDraft.compatibilityMode,
             apiKey: selectedDraft.apiKey || undefined,
           }),
         },
@@ -395,11 +404,6 @@ export function AiSettingsModal({
                     }}
                   >
                     <span>{option.label}</span>
-                    <span className="provider-tab-meta">
-                      {drafts[option.id].hasApiKey && !drafts[option.id].clearApiKey
-                        ? "キー保存済み"
-                        : "未設定"}
-                    </span>
                   </button>
                 ))}
               </div>
@@ -409,19 +413,37 @@ export function AiSettingsModal({
                   <div>
                     <h4>{selectedOption.label}</h4>
                     <p>最終更新: {formatUpdatedAt(selectedDraft.updatedAt)}</p>
-                    <p>{selectedOption.setupHint}</p>
                   </div>
-                  <span
-                    className={`provider-state-pill${
-                      selectedDraft.hasApiKey && !selectedDraft.clearApiKey
-                        ? " is-ready"
-                        : ""
-                    }`}
-                  >
-                    {selectedDraft.hasApiKey && !selectedDraft.clearApiKey
-                      ? "APIキー保存済み"
-                      : "APIキー未設定"}
-                  </span>
+                  <div className="provider-form-tools">
+                    {selectedProvider !== "gemini" ? (
+                      <label className="compact-field provider-compatibility-field">
+                        <span>API互換</span>
+                        <select
+                          value={selectedDraft.compatibilityMode}
+                          onChange={(event) =>
+                            updateSelectedDraft({
+                              compatibilityMode: event.target.value as AiApiCompatibilityMode,
+                            })
+                          }
+                        >
+                          <option value="auto">自動</option>
+                          <option value="responses">responses</option>
+                          <option value="chat_completions">chat</option>
+                        </select>
+                      </label>
+                    ) : null}
+                    <span
+                      className={`provider-state-pill${
+                        selectedDraft.hasApiKey && !selectedDraft.clearApiKey
+                          ? " is-ready"
+                          : ""
+                      }`}
+                    >
+                      {selectedDraft.hasApiKey && !selectedDraft.clearApiKey
+                        ? "APIキー保存済み"
+                        : "APIキー未設定"}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="ai-field-grid">

@@ -1,5 +1,5 @@
 import type { AppDatabase } from "../db/database";
-import type { AiProviderId } from "../types";
+import type { AiApiCompatibilityMode, AiProviderId } from "../types";
 
 type AiSettingsRow = {
   active_provider: AiProviderId;
@@ -9,6 +9,7 @@ export type AiProviderConfigRecord = {
   provider: AiProviderId;
   endpoint: string;
   model: string;
+  compatibilityMode: AiApiCompatibilityMode;
   secretStorage: "" | "keychain" | "dpapi";
   secretRef: string;
   updatedAt: string;
@@ -18,6 +19,7 @@ type AiProviderConfigRow = {
   provider: AiProviderId;
   endpoint: string;
   model: string;
+  api_compatibility_mode: AiApiCompatibilityMode;
   secret_storage: "" | "keychain" | "dpapi";
   secret_ref: string;
   updated_at: string;
@@ -55,7 +57,7 @@ export class AiSettingsRepository {
     const rows = this.db
       .prepare(
         `
-        SELECT provider, endpoint, model, secret_storage, secret_ref, updated_at
+        SELECT provider, endpoint, model, api_compatibility_mode, secret_storage, secret_ref, updated_at
         FROM ai_provider_configs
         ORDER BY provider ASC
         `,
@@ -69,7 +71,7 @@ export class AiSettingsRepository {
     const row = this.db
       .prepare(
         `
-        SELECT provider, endpoint, model, secret_storage, secret_ref, updated_at
+        SELECT provider, endpoint, model, api_compatibility_mode, secret_storage, secret_ref, updated_at
         FROM ai_provider_configs
         WHERE provider = ?
         LIMIT 1
@@ -88,6 +90,7 @@ export class AiSettingsRepository {
           provider,
           endpoint,
           model,
+          api_compatibility_mode,
           secret_storage,
           secret_ref,
           updated_at
@@ -96,6 +99,7 @@ export class AiSettingsRepository {
           @provider,
           @endpoint,
           @model,
+          @compatibilityMode,
           @secretStorage,
           @secretRef,
           @updatedAt
@@ -103,6 +107,7 @@ export class AiSettingsRepository {
         ON CONFLICT(provider) DO UPDATE
         SET endpoint = excluded.endpoint,
             model = excluded.model,
+            api_compatibility_mode = excluded.api_compatibility_mode,
             secret_storage = excluded.secret_storage,
             secret_ref = excluded.secret_ref,
             updated_at = excluded.updated_at
@@ -116,6 +121,7 @@ export class AiSettingsRepository {
       provider: row.provider,
       endpoint: row.endpoint,
       model: row.model,
+      compatibilityMode: row.api_compatibility_mode,
       secretStorage: row.secret_storage,
       secretRef: row.secret_ref,
       updatedAt: row.updated_at,

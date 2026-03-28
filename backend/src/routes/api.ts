@@ -46,6 +46,10 @@ function parseAiConnectionTestInput(body: unknown): AiConnectionTestInput {
         : "openai_compatible",
     endpoint: typeof payload.endpoint === "string" ? payload.endpoint : undefined,
     model: typeof payload.model === "string" ? payload.model : undefined,
+    compatibilityMode:
+      typeof payload.compatibilityMode === "string"
+        ? payload.compatibilityMode
+        : undefined,
     apiKey: typeof payload.apiKey === "string" ? payload.apiKey : undefined,
   };
 }

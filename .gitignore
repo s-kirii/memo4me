@@ -1,6 +1,8 @@
 doc/tasklist.md
 doc/windows-start-check.md
 doc/release-candidates.md
+doc/ai-task-ideas.md
+doc/ai-weekly-review-notes.md
 node_modules/
 dist-electron/
 frontend/node_modules/

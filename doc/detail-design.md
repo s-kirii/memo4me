@@ -780,6 +780,10 @@ UI:
 - macOS は Keychain、Windows は DPAPI 保護を利用する
 - OpenAI / Gemini は UI 上で既定 endpoint を初期表示してよい
 - Azure OpenAI はユーザー環境依存のため endpoint 手入力前提とする
+- `OpenAI互換` / `Azure OpenAI` は `api_compatibility_mode` を持てるようにする
+  - `auto`
+  - `responses`
+  - `chat_completions`
 
 ### 9.12 `POST /api/ai/settings/test`
 
@@ -791,6 +795,7 @@ UI:
 
 - `apiKey` 未指定時は保存済みキーを利用してよい
 - provider 側の 4xx / 5xx は `AI_CONNECTION_FAILED` として包んで返す
+- `OpenAI互換` / `Azure OpenAI` の接続テストは `responses` と `chat/completions` の両互換を扱えるようにする
 - 現フェーズでは接続テストの土台のみ実装し、要約や抽出処理は次フェーズで扱う
 
 ### 9.13 `GET /api/notes/:id/ai-outputs`

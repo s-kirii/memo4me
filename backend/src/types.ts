@@ -38,10 +38,16 @@ export type AiProviderId =
   | "azure_openai"
   | "gemini";
 
+export type AiApiCompatibilityMode =
+  | "auto"
+  | "responses"
+  | "chat_completions";
+
 export type AiProviderConfig = {
   provider: AiProviderId;
   endpoint: string;
   model: string;
+  compatibilityMode: AiApiCompatibilityMode;
   hasApiKey: boolean;
   updatedAt: string | null;
 };
@@ -62,6 +68,7 @@ export type AiProviderConfigInput = {
   provider: AiProviderId;
   endpoint: string;
   model: string;
+  compatibilityMode?: AiApiCompatibilityMode;
   apiKey?: string;
   clearApiKey?: boolean;
 };
@@ -75,6 +82,7 @@ export type AiConnectionTestInput = {
   provider: AiProviderId;
   endpoint?: string;
   model?: string;
+  compatibilityMode?: AiApiCompatibilityMode;
   apiKey?: string;
 };
 

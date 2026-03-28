@@ -11,6 +11,7 @@ import {
 import { PlatformSecretStore } from "../ai/platform-secret-store";
 import type { AiProviderConfigRecord, AiSettingsRepository } from "../repositories/ai-settings-repository";
 import type {
+  AiApiCompatibilityMode,
   AiConnectionTestInput,
   AiProviderConfig,
   AiProviderConfigInput,
@@ -32,6 +33,25 @@ function findConfigByProvider(
   return configs.find((config) => config.provider === provider) ?? null;
 }
 
+const AI_COMPATIBILITY_MODES: AiApiCompatibilityMode[] = [
+  "auto",
+  "responses",
+  "chat_completions",
+];
+
+function resolveCompatibilityMode(
+  provider: AiProviderId,
+  mode?: AiApiCompatibilityMode | string | null,
+): AiApiCompatibilityMode {
+  if (provider === "gemini") {
+    return "auto";
+  }
+
+  return AI_COMPATIBILITY_MODES.includes(mode as AiApiCompatibilityMode)
+    ? (mode as AiApiCompatibilityMode)
+    : "auto";
+}
+
 export class AiSettingsService {
   constructor(
     private readonly aiSettingsRepository: AiSettingsRepository,
@@ -50,6 +70,7 @@ export class AiSettingsService {
         provider,
         endpoint: config?.endpoint || getDefaultAiEndpoint(provider),
         model: config?.model ?? "",
+        compatibilityMode: resolveCompatibilityMode(provider, config?.compatibilityMode),
         hasApiKey: Boolean(config?.secretStorage && config?.secretRef),
         updatedAt: config?.updatedAt ?? null,
       };
@@ -103,6 +124,10 @@ export class AiSettingsService {
         provider: providerInput.provider,
         endpoint: providerInput.endpoint.trim(),
         model: providerInput.model.trim(),
+        compatibilityMode: resolveCompatibilityMode(
+          providerInput.provider,
+          providerInput.compatibilityMode ?? previousConfig?.compatibilityMode,
+        ),
         secretStorage,
         secretRef,
         updatedAt: now,
@@ -116,6 +141,10 @@ export class AiSettingsService {
           provider,
           endpoint: previousConfig?.endpoint || getDefaultAiEndpoint(provider),
           model: previousConfig?.model ?? "",
+          compatibilityMode: resolveCompatibilityMode(
+            provider,
+            previousConfig?.compatibilityMode,
+          ),
           secretStorage: previousConfig?.secretStorage ?? "",
           secretRef: previousConfig?.secretRef ?? "",
           updatedAt: previousConfig?.updatedAt ?? now,
@@ -136,6 +165,7 @@ export class AiSettingsService {
     const result = await adapter.testConnection({
       endpoint: resolvedConfig.endpoint,
       model: resolvedConfig.model,
+      compatibilityMode: resolvedConfig.compatibilityMode,
       apiKey: resolvedConfig.apiKey,
     });
 
@@ -166,6 +196,10 @@ export class AiSettingsService {
       savedConfig?.endpoint ||
       getDefaultAiEndpoint(input.provider);
     const model = input.model?.trim() || savedConfig?.model || "";
+    const compatibilityMode = resolveCompatibilityMode(
+      input.provider,
+      input.compatibilityMode ?? savedConfig?.compatibilityMode,
+    );
     const inlineApiKey = input.apiKey?.trim() || "";
     const savedApiKey = savedConfig
       ? this.secretStore.read(input.provider, {
@@ -204,6 +238,7 @@ export class AiSettingsService {
       provider: input.provider,
       endpoint,
       model,
+      compatibilityMode,
       apiKey,
     };
   }
@@ -217,6 +252,17 @@ export class AiSettingsService {
 
     if (typeof input.model !== "string") {
       throw new HttpError(400, "VALIDATION_ERROR", "model must be a string");
+    }
+
+    if (
+      input.compatibilityMode !== undefined &&
+      !AI_COMPATIBILITY_MODES.includes(input.compatibilityMode)
+    ) {
+      throw new HttpError(
+        400,
+        "VALIDATION_ERROR",
+        "compatibilityMode is invalid",
+      );
     }
 
     if (input.apiKey !== undefined && typeof input.apiKey !== "string") {

@@ -179,6 +179,7 @@ npm run electron:build
 
 - 実行には API キー設定が必要
 - 対応 provider は `OpenAI互換` / `Azure OpenAI` / `Gemini`
+- `OpenAI互換` / `Azure OpenAI` では `API互換モード` として `auto / responses / chat/completions` を選べる
 - タスク管理は独立ワークスペース化済み
 - 各 provider の key / endpoint / model の取得方法は [AI Provider 設定ガイド](./doc/ai-provider-setup.md) を参照
 

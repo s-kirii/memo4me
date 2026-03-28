@@ -334,17 +334,26 @@ http://127.0.0.1:8787/api/health
 3. 使用したい provider を選びます
 4. `モデル` と `APIキー` を入力します
 5. 必要なら `Endpoint` を確認または入力します
-6. `接続テスト` で接続確認します
-7. 問題なければ `設定を保存` を押します
+6. `OpenAI互換` または `Azure OpenAI` を使う場合、必要に応じて `API互換モード` を選びます
+7. `接続テスト` で接続確認します
+8. 問題なければ `設定を保存` を押します
 
 ### 9.2 対応 provider
 
 - `OpenAI互換`
   - 既定 Base URL: `https://api.openai.com/v1`
   - OpenAI 形式の API に使います
+  - `API互換モード`
+    - `auto`: `responses` と `chat/completions` を順に試します
+    - `responses`: `responses` 前提の接続先に固定します
+    - `chat/completions`: `messages` 前提の接続先に固定します
 - `Azure OpenAI`
   - エンドポイントはユーザーごとの Azure resource に依存します
   - 例: `https://<resource>.openai.azure.com/openai/v1`
+  - `API互換モード`
+    - `auto`: `responses` と `chat/completions` を順に試します
+    - `responses`: `responses` 前提の接続先に固定します
+    - `chat/completions`: `messages` 前提の接続先に固定します
 - `Gemini`
   - 既定 Base URL: `https://generativelanguage.googleapis.com/v1beta`
 

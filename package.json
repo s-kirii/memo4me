@@ -1,7 +1,7 @@
 {
   "name": "memo4me",
   "private": true,
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "memo4me desktop shell",
   "author": "memo4me",
   "type": "module",

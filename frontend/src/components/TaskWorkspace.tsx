@@ -304,10 +304,21 @@ function calculateTodayTargetSnapshot(
   }
 
   const previousDay = addDays(referenceDate, -1);
+  const isOverdue = dueDate.getTime() < referenceDate.getTime() && task.progressPercent < 100;
   const elapsedUnitsToday = countDaysInclusive(startDate, referenceDate, calendarMode);
   const elapsedUnitsPrevious = countDaysInclusive(startDate, previousDay, calendarMode);
-  const targetToday = Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsToday));
-  const targetPrevious = Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsPrevious));
+  const scheduledTargetToday = Math.max(
+    0,
+    Math.min(100, (100 / totalUnits) * elapsedUnitsToday),
+  );
+  const scheduledTargetPrevious = Math.max(
+    0,
+    Math.min(100, (100 / totalUnits) * elapsedUnitsPrevious),
+  );
+  const targetToday = isOverdue ? 100 : scheduledTargetToday;
+  const targetPrevious = isOverdue
+    ? Math.min(task.progressPercent, 100)
+    : scheduledTargetPrevious;
   const remainingPercentToTarget = Math.round((targetToday - task.progressPercent) * 10) / 10;
   const remainingHoursToTarget =
     task.estimatedHours === null || task.estimatedHours <= 0
@@ -317,6 +328,7 @@ function calculateTodayTargetSnapshot(
   return {
     targetToday,
     targetPrevious,
+    isOverdue,
     remainingPercentToTarget,
     remainingHoursToTarget,
   };
@@ -921,7 +933,6 @@ export function TaskWorkspace({
 
   const todaySprintSummary = useMemo(() => {
     const today = startOfToday();
-    const previousDay = addDays(today, -1);
     const todayTasks = filteredTasks.filter((task) => isEffectiveTodayTask(task, today));
 
     let eligibleCount = 0;
@@ -932,32 +943,19 @@ export function TaskWorkspace({
     let hoursNumerator = 0;
     let hoursDenominator = 0;
     for (const task of todayTasks) {
-      const startDate = parseDateOnly(task.startTargetDate);
-      const dueDate = parseDateOnly(task.dueDate);
-
-      if (!startDate || !dueDate) {
+      const snapshot = calculateTodayTargetSnapshot(task, today, sprintCalendarMode);
+      if (!snapshot) {
         unscheduledCount += 1;
         continue;
       }
 
-      if (!isSameOrAfter(today, startDate)) {
+      const startDate = parseDateOnly(task.startTargetDate);
+      if (!startDate || !isSameOrAfter(today, startDate)) {
         preStartCount += 1;
         continue;
       }
 
-      const totalUnits = countDaysInclusive(startDate, dueDate, sprintCalendarMode);
-      if (totalUnits <= 0) {
-        unscheduledCount += 1;
-        continue;
-      }
-
-      const elapsedUnitsToday = countDaysInclusive(startDate, today, sprintCalendarMode);
-      const elapsedUnitsPrevious = countDaysInclusive(startDate, previousDay, sprintCalendarMode);
-      const targetToday = Math.max(0, Math.min(100, (100 / totalUnits) * elapsedUnitsToday));
-      const targetPrevious = Math.max(
-        0,
-        Math.min(100, (100 / totalUnits) * elapsedUnitsPrevious),
-      );
+      const { targetToday, targetPrevious } = snapshot;
       const dailyTarget = targetToday - targetPrevious;
 
       if (dailyTarget <= 0) {

@@ -3,6 +3,7 @@
 interface Memo4meDesktopBridge {
   isElectron: boolean;
   platform: string;
+  arch: string;
   version: string;
   quitApp: () => Promise<{ ok: true }>;
   getUpdateState: () => Promise<Memo4meUpdateState>;

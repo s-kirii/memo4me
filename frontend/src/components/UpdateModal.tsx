@@ -24,7 +24,35 @@ function formatUpdateTimestamp(value: string | null) {
 }
 
 export function UpdateModal({ isOpen, onClose }: UpdateModalProps) {
-  const [state, setState] = useState<Memo4meUpdateState | null>(null);
+  const [state, setState] = useState<Memo4meUpdateState | null>(() => {
+    const bridge = window.memo4meDesktop;
+    if (!bridge?.isElectron) {
+      return {
+        supported: false,
+        enabled: false,
+        status: "unsupported",
+        currentVersion: "不明",
+        targetVersion: null,
+        progressPercent: null,
+        message: "更新機能はデスクトップ版で利用できます。",
+        lastCheckedAt: null,
+      };
+    }
+
+    const supported = bridge.platform === "win32" && bridge.arch === "x64";
+    return {
+      supported,
+      enabled: supported,
+      status: supported ? "idle" : "unsupported",
+      currentVersion: "確認中",
+      targetVersion: null,
+      progressPercent: null,
+      message: supported
+        ? "更新を確認できます。"
+        : "自動更新は現在 Windows x64 のデスクトップ版でのみ利用できます。",
+      lastCheckedAt: null,
+    };
+  });
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
@@ -38,6 +66,23 @@ export function UpdateModal({ isOpen, onClose }: UpdateModalProps) {
     void bridge.getUpdateState().then((nextState) => {
       if (!cancelled) {
         setState(nextState);
+      }
+    }).catch((error) => {
+      if (!cancelled) {
+        setState((currentState) => ({
+          supported: currentState?.supported ?? false,
+          enabled: false,
+          status: "error",
+          currentVersion: currentState?.currentVersion ?? "不明",
+          targetVersion: null,
+          progressPercent: null,
+          message:
+            error instanceof Error
+              ? `更新状態の取得に失敗しました: ${error.message}`
+              : "更新状態の取得に失敗しました。",
+          lastCheckedAt: new Date().toISOString(),
+        }));
+        setIsBusy(false);
       }
     });
 
